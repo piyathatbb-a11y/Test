@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^node --input-type=module -e \"import \\{ QuestionGenerator \\} from '\\./js/systems/QuestionGenerator\\.js'; const generator = new QuestionGenerator\\(\\); const questions = Array\\.from\\(\\{length: 100\\}, \\(\\) => generator\\.generate\\(1, \\[\\], Math\\.random\\)\\); const unique = new Set\\(questions\\.map\\(q => q\\.question \\+ ' ' \\+ q\\.unit\\)\\); const prefixTraps = questions\\.filter\\(q => q\\.options\\.some\\(value => Math\\.abs\\(value\\) >= Math\\.abs\\(q\\.correctValue \\* 1000\\) \\* 0\\.999 ; Math\\.abs\\(value\\) <= Math\\.abs\\(q\\.correctValue \\* 1000\\) \\* 1\\.001\\)\\); if \\(questions\\.some\\(q => q\\.options\\.length !== 4 ; new Set\\(q\\.options\\)\\.size !== 4\\)\\) throw new Error\\('duplicate or missing options'\\); console\\.log\\(JSON\\.stringify\\(\\{generated: questions\\.length, uniqueQuestions: unique\\.size, sample: questions\\.slice\\(0, 5\\)\\.map\\(q => \\(\\{question: q\\.question \\+ ' ' \\+ q\\.unit, options: q\\.options, answer: q\\.correctValue\\}\\)\\), prefixTrapCount: prefixTraps\\.length\\}, null, 2\\)\\);\"$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

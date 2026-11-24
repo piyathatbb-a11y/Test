@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UNIT HUNTER</title>
+  <link rel="icon" type="image/svg+xml" href="assets/ui/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/battle.css">
+  <link rel="stylesheet" href="css/ui.css">
+  <link rel="stylesheet" href="css/expedition.css">
+</head>
+<body>
+3  <div id="app">
+    <!-- COMMAND HUB -->
+    <section id="screen-start" class="screen active" aria-labelledby="start-title">
+      <div class="scanline-overlay"></div>
+      <div class="hub-shell">
+        <div class="world-map-backdrop" aria-hidden="true">
+          <img class="world-map-image" src="assets/ui/world-map.png" alt="" decoding="async">
+        </div>
+        <div class="world-map-overlay">
+          <svg class="world-map-routes" viewBox="0 0 1000 600" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <filter id="route-glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            </defs>
+            <path class="world-map-route world-map-route--main" d="M170 180 C285 120 350 120 460 168 S680 120 800 198"/>
+            <path class="world-map-route world-map-route--support" d="M170 180 C210 270 250 360 290 432"/>
+            <path class="world-map-route world-map-route--support" d="M460 168 C500 230 520 280 550 330 S690 370 790 432"/>
+            <circle class="world-map-route__node" cx="170" cy="180" r="7"/>
+            <circle class="world-map-route__node" cx="460" cy="168" r="7"/>
+            <circle class="world-map-route__node" cx="800" cy="198" r="7"/>
+            <circle class="world-map-route__node" cx="290" cy="432" r="7"/>
+            <circle class="world-map-route__node" cx="550" cy="330" r="7"/>
+            <circle class="world-map-route__node" cx="790" cy="432" r="7"/>
+          </svg>
+          <nav class="world-map-markers" aria-label="Tactical mission map">
+            <button class="world-map-marker world-map-marker--primary" data-map-action="run" style="--pin-x:17%;--pin-y:30%;" aria-label="Open Run mission">
+              <span class="world-map-marker__core" aria-hidden="true"></span><span class="world-map-marker__label"><strong>ALPHA</strong><small>RUN / AVAILABLE</small></span>
+            </button>
+            <button class="world-map-marker" data-map-action="records" style="--pin-x:46%;--pin-y:28%;" aria-label="Open Records">
+              <span class="world-map-marker__core" aria-hidden="true"></span><span class="world-map-marker__label"><strong>EUROPA</strong><small>RECORDS / ARCHIVE</small></span>
+            </button>
+            <button class="world-map-marker world-map-marker--danger world-map-marker--left-label" data-map-action="daily" style="--pin-x:80%;--pin-y:33%;" aria-label="Open daily expedition">
+              <span class="world-map-marker__core" aria-hidden="true"></span><span class="world-map-marker__label"><strong>ORIENT</strong><small>DAILY MAP / <span id="map-daily-state">OPEN</span></small></span>
+            </button>
+            <button class="world-map-marker world-map-marker--support" data-map-action="training" style="--pin-x:29%;--pin-y:72%;" aria-label="Open Training">
+              <span class="world-map-marker__core" aria-hidden="true"></span><span class="world-map-marker__label"><strong>ANDES</strong><small>TRAINING / SAFE</small></span>
+            </button>
+            <button class="world-map-marker world-map-marker--support" data-map-action="codex" style="--pin-x:55%;--pin-y:55%;" aria-label="Open SI Codex">
+              <span class="world-map-marker__core" aria-hidden="true"></span><span class="world-map-marker__label"><strong>SAHARA</strong><small>SI CODEX / INTEL</small></span>
+            </button>
+            <button class="world-map-marker world-map-marker--support world-map-marker--left-label" data-map-action="help" style="--pin-x:79%;--pin-y:72%;" aria-label="Open Help tutorial">
+              <span class="world-map-marker__core" aria-hidden="true"></span><span class="world-map-marker__label"><strong>OUTBACK</strong><small>HELP / BRIEFING</small></span>
+            </button>
+          </nav>
+        </div>
+        <header class="hub-topbar">
+          <div class="hub-brand">
+            <span class="hub-brand__mark">UH</span>
+            <span><strong>UNIT HUNTER</strong><small>COMMAND DECK / SI CORE</small></span>
+          </div>
+          <div class="hub-status"><span class="status-dot"></span> <span data-i18n="system_online">SYSTEM ONLINE</span> <button id="btn-language" class="language-toggle" type="button" aria-label="Switch language">TH / EN</button></div>
+        </header>
+
+        <main class="hub-main">
+          <section class="hub-intro">
+            <div class="hub-eyebrow">MEASUREMENT OPERATIONS // READY</div>
+            <h1 class="game-title" id="start-title"><span class="title-main">UNIT</span><span class="title-divider"></span><span class="title-sub">HUNTER</span></h1>
+            <p class="tagline">Convert. Survive. Ascend.</p>
+            <p class="hub-summary">Select a mission node. Every correct conversion keeps the rig alive.</p>
+          </section>
+
+          <section class="hub-map" aria-label="Mission selection">
+            <div class="hub-map__grid" aria-hidden="true"></div>
+            <div class="hub-map__line hub-map__line--main"></div>
+            <div class="hub-map__line hub-map__line--side"></div>
+            <button id="btn-start" class="hub-node hub-node--primary" data-mode="run" aria-describedby="run-node-meta">
+              <span class="hub-node__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M6 6l12 12M18 6 6 18"/></svg></span>
+              <span class="hub-node__copy"><strong>EXPEDITION</strong><small id="run-node-meta">TURN-BASED / ONE SECTOR</small></span>
+              <span class="hub-node__state">START</span>
+            </button>
+            <button id="btn-training" class="hub-node" data-hub-panel="training" aria-label="Open training configuration">
+              <span class="hub-node__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM8 8h8M8 12h5M8 16h8"/></svg></span>
+              <span class="hub-node__copy"><strong>TRAINING</strong><small>GUIDED CONVERSIONS</small></span>
+              <span class="hub-node__state">READY</span>
+            </button>
+            <button id="btn-daily" class="hub-node" data-hub-panel="daily" aria-label="Open daily expedition challenge">
+              <span class="hub-node__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 14.8 9.2 21 12l-6.2 2.8L12 21l-2.8-6.2L3 12l6.2-2.8L12 3Z"/></svg></span>
+              <span class="hub-node__copy"><strong>DAILY MAP</strong><small id="daily-node-meta">RANKED / BANGKOK DAY</small></span>
+              <span class="hub-node__state" id="daily-node-state">OPEN</span>
+            </button>
+            <button id="btn-records" class="hub-node hub-node--utility" aria-label="Open expedition records and leaderboard">
+              <span class="hub-node__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 20V9M12 20V4M19 20v-7"/></svg></span>
+              <span class="hub-node__copy"><strong>RECORDS</strong><small>BESTS // LEADERBOARD</small></span>
+            </button>
+            <button id="btn-codex" class="hub-node hub-node--utility" data-hub-panel="codex" aria-label="Open SI codex">
+              <span class="hub-node__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2V4Zm0 0v14a2 2 0 0 0 2 2M9 8h6M9 12h6"/></svg></span>
+              <span class="hub-node__copy"><strong>SI CODEX</strong><small>7 BASE QUANTITIES</small></span>
+            </button>
+            <button id="btn-help" class="hub-node hub-node--utility" data-hub-panel="help" aria-label="Open help tutorial">
+              <span class="hub-node__icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9.5 9a2.7 2.7 0 1 1 4.8 1.7c-1.1 1.2-2.3 1.4-2.3 3.1M12 17.5h.01M5 4h14v16H5z"/></svg></span>
+              <span class="hub-node__copy"><strong>HELP</strong><small>FIELD MANUAL / SKIP ANYTIME</small></span>
+            </button>
+          </section>
+        </main>
+
+        <footer class="hub-footer"><span>SI BASE UNITS / TRAIN YOUR INSTINCT</span><span id="hub-last-run">NO RUN DATA</span></footer>
+
+        <div class="hub-panel" id="hub-panel-records" role="dialog" aria-modal="true" aria-labelledby="records-title" hidden>
+          <div class="hub-panel__backdrop" data-close-panel></div>
+          <div class="hub-panel__card">
+            <button class="panel-close" type="button" data-close-panel aria-label="Close records">×</button>
+            <div class="panel-kicker">ARCHIVE / 01</div><h2 id="records-title">RECORDS</h2>
+            <section class="personal-bests"><h3>PERSONAL BESTS</h3><div class="stat-grid">
+              <div class="stat-box"><span class="stat-label">BEST LEVEL</span><span class="stat-value" id="pb-level">0</span></div>
+              <div class="stat-box"><span class="stat-label">BEST SCORE</span><span class="stat-value" id="pb-score">0</span></div>
+              <div class="stat-box"><span class="stat-label">BEST COMBO</span><span class="stat-value" id="pb-combo">0</span></div>
+              <div class="stat-box"><span class="stat-label">TOTAL CORRECT</span><span class="stat-value" id="pb-correct">0</span></div>
+              <div class="stat-box"><span class="stat-label">TOTAL RUNS</span><span class="stat-value" id="pb-runs">0</span></div>
+            </div></section>
+            <section class="leaderboard-preview"><h3>LEADERBOARD</h3><div class="leaderboard-table" id="start-leaderboard"><div class="lb-row lb-header"><span>RANK</span><span>NAME</span><span>SCORE</span><span>LVL</span></div></div></section>
+          </div>
+        </div>
+
+        <div class="hub-panel" id="hub-panel-codex" role="dialog" aria-modal="true" aria-labelledby="codex-title" hidden>
+          <div class="hub-panel__backdrop" data-close-panel></div>
+          <div class="hub-panel__card"><button class="panel-close" type="button" data-close-panel aria-label="Close codex">×</button>
+            <div class="panel-kicker">REFERENCE / SI CORE</div><h2 id="codex-title">SI CODEX</h2><p class="panel-lede">The seven base quantities used by every hunter.</p>
+            <div class="codex-grid" id="codex-grid"></div>
+          </div>
+        </div>
+
+        <div class="hub-panel" id="hub-panel-training" role="dialog" aria-modal="true" aria-labelledby="training-title" hidden>
+          <div class="hub-panel__backdrop" data-close-panel></div>
+          <div class="hub-panel__card"><button class="panel-close" type="button" data-close-panel aria-label="Close training">×</button>
+            <div class="panel-kicker">SIMULATION / NO DAMAGE</div><h2 id="training-title">TRAINING</h2><p class="panel-lede">Tune the drill before entering the arena.</p>
+            <div class="config-block"><span class="config-label">QUANTITY</span><div class="choice-row" id="training-categories"></div></div>
+            <div class="config-block"><span class="config-label">INTENSITY</span><div class="choice-row"><button class="choice-chip is-selected" data-training-difficulty="guided">GUIDED</button><button class="choice-chip" data-training-difficulty="standard">STANDARD</button><button class="choice-chip" data-training-difficulty="challenge">CHALLENGE</button></div></div>
+            <section class="ai-question-settings" aria-labelledby="ai-question-title">
+              <label class="ai-question-toggle"><input id="ai-questions-enabled" type="checkbox"><span id="ai-question-title">GENERATE QUESTIONS WITH AI</span></label>
+              <p class="ai-question-note">Uses OpenAI to create new conversion-question batches. The game calculates and checks each answer.</p>
+              <label class="sr-only" for="ai-api-key">OpenAI API key</label>
+              <input id="ai-api-key" class="ai-api-key" type="password" autocomplete="off" placeholder="OpenAI API key">
+              <div class="ai-question-actions">
+                <button id="btn-save-ai-key" class="btn-secondary" type="button">SAVE KEY</button>
+                <button id="btn-clear-ai-key" class="btn-secondary" type="button">REMOVE KEY</button>
+              </div>
+              <p class="ai-key-warning">Key is stored in this browser only, not securely. Anyone with access to this browser can inspect it.</p>
+              <p id="ai-question-status" class="ai-question-status" role="status" aria-live="polite"></p>
+            </section>
+            <button id="btn-training-start" class="btn-primary panel-action">START DRILL</button>
+          </div>
+        </div>
+
+        <div class="hub-panel" id="hub-panel-daily" role="dialog" aria-modal="true" aria-labelledby="daily-title" hidden>
+          <div class="hub-panel__backdrop" data-close-panel></div>
+          <div class="hub-panel__card"><button class="panel-close" type="button" data-close-panel aria-label="Close daily challenge">×</button>
+            <div class="panel-kicker">SHARED ROUTE / BANGKOK DAY</div><h2 id="daily-title">DAILY EXPEDITION</h2><p class="panel-lede" id="daily-date-label">เลือกหัวข้อก่อนเริ่ม แมพเดียวกันในแต่ละวัน</p>
+            <div class="daily-brief"><span class="daily-brief__label">TARGET</span><strong id="daily-boss-name">--</strong><small id="daily-status">RANKED ATTEMPT AVAILABLE</small></div>
+            <div class="daily-actions"><button id="btn-daily-practice" class="btn-secondary">PRACTICE</button><button id="btn-daily-ranked" class="btn-primary">START RANKED</button></div>
+          </div>
+        </div>
+
+        <div class="hub-panel" id="hub-panel-help" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
+          <div class="hub-panel__backdrop" data-close-panel></div>
+          <div class="hub-panel__card tutorial-card">
+            <button class="panel-close" type="button" data-close-panel aria-label="Close help tutorial">×</button>
+            <div class="panel-kicker" id="tutorial-kicker">FIELD MANUAL / 01</div>
+            <h2 id="help-title">HELP // SI BASICS</h2>
+            <div class="tutorial-progress" id="tutorial-progress" aria-label="Tutorial progress"></div>
+            <div class="tutorial-content" id="tutorial-content"></div>
+            <div class="tutorial-actions"><button id="btn-tutorial-skip" class="btn-secondary">SKIP TUTORIAL</button><button id="btn-tutorial-next" class="btn-primary">NEXT</button></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MISSION LAUNCH CUTSCENE -->
+    <div class="mission-cutscene" id="mission-cutscene" aria-hidden="true" hidden>
+      <div class="mission-cutscene__map" aria-hidden="true"><div class="mission-cutscene__crosshair"></div><div class="mission-cutscene__scanline"></div></div>
+      <div class="mission-cutscene__copy"><span class="mission-cutscene__kicker" id="mission-cutscene-kicker">MISSION LINK / ACQUIRING</span><strong id="mission-cutscene-title">TARGET SIGNATURE</strong><small id="mission-cutscene-subtitle">Zooming to combat theater...</small></div>
+      <div class="mission-cutscene__target"><div class="mission-cutscene__target-ring"></div><img id="mission-cutscene-sprite" alt=""/><span>TARGET REVEALED</span></div>
+      <button id="btn-cutscene-skip" class="mission-cutscene__skip">SKIP <span>ESC</span></button>
+    </div>
+
+    <!-- BATTLE SCREEN -->
+    <section id="screen-battle" class="screen" aria-labelledby="battle-title">
+      <div class="scanline-overlay"></div>
+      <h1 id="battle-title" class="sr-only">Unit Hunter battle</h1>
+      <div class="battle-hud">
+        <div class="hud-left">
+          <div class="player-info">
+            <div class="info-row"><span class="label">LVL</span><span class="value" id="hud-level">1</span></div>
+            <div class="info-row"><span class="label">SCORE</span><span class="value" id="hud-score">0</span></div>
+            <div class="info-row"><span class="label">COMBO</span><span class="value combo-value" id="hud-combo">x1</span></div>
+          </div>
+          <div class="hp-bar-container player-hp">
+            <div class="hp-label">PLAYER HP</div>
+            <div class="hp-bar-bg"><div class="hp-bar-fill" id="player-hp-fill"></div></div>
+            <div class="hp-text"><span id="player-hp-current">100</span> / <span id="player-hp-max">100</span></div>
+          </div>
+        </div>
+        <div class="hud-center" aria-label="Answer timer">
+          <div class="hud-mode" id="hud-mode">RUN</div>
+          <div class="timer-ring" id="timer-ring">
+            <svg viewBox="0 0 64 64"><circle class="timer-bg" cx="32" cy="32" r="28"/><circle class="timer-progress" id="timer-progress" cx="32" cy="32" r="28"/></svg>
+            <div class="timer-text" id="timer-text" aria-live="polite">10</div>
+          </div>
+        </div>
+        <div class="hud-right">
+          <div class="enemy-info">
+            <div class="info-row"><span class="label">FOE</span><span class="value" id="enemy-name">--</span></div>
+            <div class="info-row"><span class="label">TYPE</span><span class="value" id="enemy-type">NORMAL</span></div>
+          </div>
+          <div class="hp-bar-container enemy-hp">
+            <div class="hp-label" id="enemy-hp-label">ENEMY HP</div>
+            <div class="hp-bar-bg"><div class="hp-bar-fill enemy" id="enemy-hp-fill"></div></div>
+            <div class="hp-text"><span id="enemy-hp-current">--</span> / <span id="enemy-hp-max">--</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="battle-stage">
+        <div class="enemy-arena">
+          <div class="sprite-mount" id="sprite-mount">
+            <div class="sprite-placeholder" id="sprite-placeholder"></div>
+            <img class="sprite-img" id="sprite-img" alt="" style="display:none;">
+          </div>
+          <div class="battle-vfx" id="battle-vfx" aria-hidden="true">
+            <span class="vfx-ring"></span>
+            <span class="vfx-slash"></span>
+            <span class="vfx-sparks"></span>
+            <span class="vfx-label" id="vfx-label"></span>
+          </div>
+          <div class="damage-numbers" id="damage-numbers"></div>
+          <div class="boss-phase-indicator" id="boss-phase" style="display:none;" aria-live="polite">PHASE 1</div>
+          <div class="enrage-indicator" id="enrage-indicator" style="display:none;" aria-live="assertive">ENRAGED!</div>
+          </div>
+        <div class="strike-sequence" id="strike-sequence" aria-hidden="true">
+          <div class="strike-sequence__scan" aria-hidden="true"></div>
+          <div class="strike-sequence__label"><span>ATTACK VECTOR / LOCKED</span><strong id="strike-sequence-label">DIRECT HIT</strong><small id="strike-sequence-prompt">PRESS SPACE / CLICK WHEN THE CURSOR ENTERS THE ZONE</small></div>
+          <div class="strike-sequence__attacker" aria-hidden="true"></div>
+          <div class="strike-sequence__bolt" aria-hidden="true"></div>
+          <div class="strike-sequence__reticle" aria-hidden="true"></div>
+          <div class="strike-sequence__impact" aria-hidden="true"></div>
+          <div class="strike-sequence__lane" aria-hidden="true"><span class="strike-sequence__lane-zone"></span><span class="strike-sequence__lane-cursor"></span></div>
+        </div>
+        <div class="death-cutscene" id="death-cutscene" aria-hidden="true">
+          <div class="death-cutscene__reticle"></div>
+          <div class="death-cutscene__copy">TARGET PURGED</div>
+          <div class="death-cutscene__sub">SIGNATURE COLLAPSE / CONFIRMED</div>
+        </div>
+        <div class="attack-windup" id="attack-windup" style="display:none;">
+          <div class="windup-bar"><div class="windup-fill" id="windup-fill"></div></div>
+          <div class="windup-label">BOSS ATTACKING!</div>
+        </div>
+      </div>
+
+      <div class="question-panel">
+        <div class="question-kicker">SI BASE CONVERSION / SELECT RESPONSE</div>
+        <div class="question-text" id="question-text" aria-live="polite">Loading...</div>
+        <div class="question-category" id="question-category">--</div>
+        <div class="scan-result" id="scan-result" aria-live="polite" hidden><span class="scan-result__label">SCAN RESULT</span><strong id="scan-result-text">--</strong></div>
+        <button class="hint-button" id="btn-hint" type="button" hidden>REVEAL HINT</button>
+        <div class="hint-panel" id="hint-panel" hidden></div>
+        <div class="answers-grid" id="answers-grid">
+          <button class="answer-btn" data-index="0"><span class="ans-key">1</span><span class="ans-text" id="ans-0">--</span></button>
+          <button class="answer-btn" data-index="1"><span class="ans-key">2</span><span class="ans-text" id="ans-1">--</span></button>
+          <button class="answer-btn" data-index="2"><span class="ans-key">3</span><span class="ans-text" id="ans-2">--</span></button>
+          <button class="answer-btn" data-index="3"><span class="ans-key">4</span><span class="ans-text" id="ans-3">--</span></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ROUTE MAP -->
+    <section id="screen-route" class="screen" aria-labelledby="route-title">
+      <div class="scanline-overlay"></div>
+      <div class="route-shell">
+        <div class="route-header"><div><div class="panel-kicker">NEXT VECTOR / ROUTE SELECTION</div><h2 id="route-title">CHOOSE YOUR APPROACH</h2><p id="route-subtitle">Every path leads forward. The cost is yours to choose.</p></div><div class="route-level" id="route-level">LEVEL 02</div></div>
+        <div class="route-track" id="route-track" aria-label="Available route nodes"></div>
+        <div class="route-history" id="route-history" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <!-- UPGRADE SCREEN -->
+    <section id="screen-upgrade" class="screen" aria-labelledby="upgrade-title">
+      <div class="scanline-overlay"></div>
+      <div class="upgrade-container">
+        <h2 class="upgrade-title" id="upgrade-title">SYSTEM UPGRADE</h2>
+        <p class="upgrade-sub">Choose one enhancement</p>
+        <div class="synergy-banner" id="synergy-banner" style="display:none;"></div>
+        <div class="upgrade-cards" id="upgrade-cards"></div>
+      </div>
+    </section>
+
+    <!-- GAME OVER SCREEN -->
+    <section id="screen-gameover" class="screen" aria-labelledby="gameover-title">
+      <div class="scanline-overlay"></div>
+      <div class="gameover-container">
+        <h2 class="go-title" id="gameover-title">RUN TERMINATED</h2>
+        <div class="go-mode" id="go-mode">SURVIVAL RUN</div>
+        <div class="go-stats">
+          <div class="go-stat"><span class="go-label">LEVEL REACHED</span><span class="go-value" id="go-level">0</span></div>
+          <div class="go-stat"><span class="go-label">FINAL SCORE</span><span class="go-value" id="go-score">0</span></div>
+          <div class="go-stat"><span class="go-label">MAX COMBO</span><span class="go-value" id="go-combo">0</span></div>
+          <div class="go-stat"><span class="go-label">CORRECT ANSWERS</span><span class="go-value" id="go-correct">0</span></div>
+          <div class="go-stat"><span class="go-label">COMBAT RANK</span><span class="go-value" id="go-rank">D</span></div>
+        </div>
+        <div class="name-entry" id="name-entry">
+          <label for="player-name-input">ENTER CALLSIGN</label>
+          <input type="text" id="player-name-input" maxlength="12" placeholder="HUNTER-01">
+          <button id="btn-submit-score" class="btn-primary">SUBMIT</button>
+        </div>
+        <div class="leaderboard-section">
+          <h3>GLOBAL LEADERBOARD</h3>
+          <div class="leaderboard-table" id="gameover-leaderboard">
+            <div class="lb-row lb-header"><span>RANK</span><span>NAME</span><span>SCORE</span><span>LVL</span></div>
+          </div>
+        </div>
+        <div class="gameover-actions">
+          <button id="btn-retry" class="btn-primary">NEW RUN</button>
+          <button id="btn-back-menu" class="btn-primary">BACK TO MENU</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
