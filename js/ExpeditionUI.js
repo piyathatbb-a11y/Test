@@ -49,11 +49,19 @@ const localeRelicDescription = relicId => locale(RELICS[relicId].description, {
   battery: 'Restores 8 HP after winning a fight'
 }[relicId] ?? RELICS[relicId].description);
 const button = (action, title, detail = '', disabled = false, primary = false) => `<button type="button" class="exp-button${primary ? ' exp-button--primary' : ''}" data-exp="${action}" ${disabled ? 'disabled' : ''}><strong>${title}</strong>${detail ? `<small>${detail}</small>` : ''}</button>`;
+const MOTION_TRIP_FORMAT = 'motion-trip';
 
 export class ExpeditionUI {
   constructor(onExit, aiQuestionService = null) {
     this.onExit = onExit;
     this.aiQuestionService = aiQuestionService;
+    this.aiQuestionService?.subscribeStatus?.(status => {
+      const element = this.root?.querySelector('[data-ai-status]');
+      if (!element) return;
+      element.dataset.state = status.type;
+      element.textContent = status.message;
+    });
+    this.motionTripStage = 'ready';
     let storage;
     try { storage = localStorage; } catch { storage = { getItem: () => null, setItem: () => { throw new Error('Storage unavailable'); } }; }
     this.store = new ExpeditionStore(storage);
@@ -79,6 +87,10 @@ export class ExpeditionUI {
     this.root.addEventListener('click', event => {
       const control = event.target.closest('[data-exp]');
       if (control && !control.disabled) this.act(control.dataset.exp);
+    });
+    this.root.addEventListener('animationend', event => {
+      const leg = event.target?.dataset?.motionMarker;
+      if (leg) this.finishMotionLeg(leg);
     });
     this.root.addEventListener('pointerdown', event => {
       if (event.button !== 0 || this.game?.s.phase !== 'qte') return;
@@ -115,11 +127,13 @@ export class ExpeditionUI {
     this.effects.cancel();
     this.stopQte();
     this.game = null;
+    this.motionTripStage = 'ready';
     this.mode = mode;
     this.saved = this.store.load();
     document.querySelectorAll('.screen.active').forEach(s => s.classList.remove('active'));
     this.root.classList.add('active');
     this.render();
+    if (mode !== 'ranked') this.loadTopicMedia();
   }
   close() {
     this.cancelAdvance();
@@ -149,6 +163,7 @@ export class ExpeditionUI {
     const ranked = this.mode === 'ranked';
     if (ranked && !this.store.startRanked(this.topic, date)) { this.render(); return; }
     this.aiQuestionService?.resetQueue();
+    this.motionTripStage = 'ready';
     if (!ranked && this.aiQuestionService?.isEnabled() && this.aiQuestionService.hasKey()) {
       void this.aiQuestionService.prefetch({
         categories: [this.topic],
@@ -169,11 +184,27 @@ export class ExpeditionUI {
     if (action === 'menu') { this.close(); return; }
     if (action === 'skip-entry') { this.effects.finishIntro(); return; }
     if (this.effects.busy) return;
-    if (action === 'topic') { this.topic = arg; this.render(); return; }
+    if (action === 'motion-outbound' && this.motionTripStage === 'ready') {
+      this.motionTripStage = 'outbound';
+      this.render();
+      return;
+    }
+    if (action === 'motion-return' && this.motionTripStage === 'destination') {
+      this.motionTripStage = 'returning';
+      this.render();
+      return;
+    }
+    if (action === 'motion-arrive') { this.finishMotionLeg(arg); return; }
+    if (action === 'motion-reset' && this.motionTripStage === 'complete') {
+      this.motionTripStage = 'ready';
+      this.render();
+      return;
+    }
+    if (action === 'topic') { this.topic = arg; this.render(); this.loadTopicMedia(); return; }
     if (action === 'mode') { this.mode = arg; this.render(); return; }
     if (action === 'ai-toggle' && this.aiQuestionService) {
       this.aiQuestionService.setEnabled(this.root.querySelector('[data-ai-enabled]')?.checked === true);
-      this.render(); return;
+      this.render(); this.loadTopicMedia(); return;
     }
     if (action === 'ai-save' && this.aiQuestionService) {
       this.aiQuestionService.saveKey(this.root.querySelector('[data-ai-key]')?.value || '');
@@ -192,6 +223,7 @@ export class ExpeditionUI {
     if (action === 'new') { this.game = null; this.saved = this.store.load(); this.render(); return; }
     if (!this.game) return;
     const s = this.game.s;
+    if (action === 'answer' && s.question?.motionTrip && this.motionTripStage !== 'complete') return;
     if (action === 'hit') { this.hitQte(); return; }
     const entry = action === 'node' && this.game.enter(arg) && s.phase === 'skill';
     if (action === 'skill') this.game.chooseSkill(arg);
@@ -265,6 +297,11 @@ export class ExpeditionUI {
       ${entry && s?.enemy ? this.entryScene() : ''}
       <footer class="exp-footer"><span>${locale('ความรู้ → จังหวะ → ผลลัพธ์', 'Knowledge → timing → outcome')}</span><span>PERFECT 120% · GOOD 100% · BAD 75%</span></footer>
     </div>`;
+    if (s?.phase === 'question' && s.question.source === 'ai') {
+      const questionTitle = this.root.querySelector('.exp-task h2');
+      questionTitle?.insertAdjacentHTML('afterend', this.webMedia(s.topic, s.question.sources || []));
+    }
+    this.root.querySelectorAll('.exp-web-media img').forEach(image => image.addEventListener('error', () => image.closest('.exp-web-media > a')?.remove(), { once: true }));
     const enteringMap = s?.phase === 'map' && previousPhase !== 'map';
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
     if (!reducedMotion && enteringMap) {
@@ -322,6 +359,7 @@ export class ExpeditionUI {
       <fieldset><legend>${locale('หัวข้อแปลงหน่วย', 'Conversion topics')}</legend><div class="exp-options">${Object.keys(TOPICS).map(id => `<button class="exp-button ${id === this.topic ? 'is-selected' : ''}" data-exp="topic:${id}" aria-pressed="${id === this.topic}">${localeTopic(id)}</button>`).join('')}</div></fieldset>
       <fieldset><legend>${locale('รูปแบบรอบ', 'Run format')}</legend><div class="exp-options">${[['normal', locale('เดินทางทั่วไป', 'Casual route'), locale('แมพใหม่ · พักแล้วเล่นต่อได้', 'New map · pause and resume anytime')], ['practice', locale('ฝึกรายวัน', 'Daily practice'), locale('แมพเดียวกับจัดอันดับ · ฝึกซ้ำได้', 'Same map as ranked · practice repeatedly')], ['ranked', locale('จัดอันดับรายวัน', 'Daily ranked'), locale('ครั้งเดียวต่อหัวข้อต่อวัน · ออกจากรอบหมดสิทธิ์อันดับ', 'One attempt per topic per day · leaving the run cancels ranked eligibility')]].map(([id, name, detail]) => `<button class="exp-button ${id === this.mode ? 'is-selected' : ''}" data-exp="mode:${id}" aria-pressed="${id === this.mode}"><strong>${name}</strong><small>${detail}</small></button>`).join('')}</div></fieldset>
       ${this.aiQuestionService ? this.aiSettings() : ''}
+      ${this.webMedia(this.topic)}
       ${daily ? `<p class="exp-note">${locale('วันที่', 'Date')} ${dayKey()} · ${locale('เวลาไทย', 'Thailand time')} · ${locale('อันดับเฉพาะเครื่องนี้', 'This device only')} ${attempted ? locale('· ใช้สิทธิ์หัวข้อนี้แล้ว', '· this topic is already used') : ''}</p>` : ''}
       ${learning?.total ? `<p class="exp-note">${locale('ประวัติหัวข้อนี้:', 'This topic history:')} ${locale('ตอบถูก', 'Correct')} ${Number(learning.correct) || 0}/${Number(learning.total) || 0} ${locale('ข้อ', 'questions')}</p>` : ''}
       <div class="exp-actions">${button('start', locale('เริ่มเดินทาง →', 'Begin route →'), this.saved?.phase !== 'ended' && this.saved ? locale('เริ่มใหม่จะทับรอบที่บันทึกไว้', 'Starting a new run overwrites the saved round') : '', this.mode === 'ranked' && attempted, true)}${this.saved && this.saved.phase !== 'ended' ? button('resume', locale('เล่นรอบที่บันทึกต่อ', 'Resume saved run'), locale('รอบที่กลับมาเล่นต่อเป็นรอบทั่วไป', 'The resumed round continues as a casual run')) : ''}</div>
@@ -332,13 +370,45 @@ export class ExpeditionUI {
     const status = this.aiQuestionService.getStatus();
     return `<section class="exp-ai-settings" aria-label="${locale('คำถามจาก AI', 'AI-generated questions')}">
       <label><input type="checkbox" data-ai-enabled data-exp="ai-toggle" ${this.aiQuestionService.isEnabled() ? 'checked' : ''}> ${locale('สร้างคำถามด้วย AI', 'Generate questions with AI')}</label>
-      <p>${locale('ต้องบันทึก API key และเปิดตัวเลือกนี้ จึงจะได้โจทย์ AI รวมแผนภาพและการคำนวณหลายขั้น ในรอบทั่วไป/ฝึกรายวัน; จัดอันดับไม่ใช้ AI', 'Save an API key and enable this option for AI questions, including diagrams and multi-step calculations, in casual/practice runs. Ranked never uses AI.')}</p>
+      <p>${locale('ต้องบันทึก API key และเปิดตัวเลือกนี้ จึงจะได้โจทย์ AI รวมแผนภาพ การคำนวณหลายขั้น และทริปความเร็วโต้ตอบได้ ในรอบทั่วไป/ฝึกรายวัน; จัดอันดับไม่ใช้ AI', 'Save an API key and enable this option for AI questions, including diagrams, multi-step calculations, and interactive speed trips, in casual/practice runs. Ranked never uses AI.')}</p>
       <label class="sr-only" for="exp-ai-key">${locale('OpenAI API key', 'OpenAI API key')}</label>
       <input id="exp-ai-key" type="password" data-ai-key autocomplete="off" placeholder="OpenAI API key">
       <div class="exp-actions">${button('ai-save', locale('บันทึกคีย์', 'Save key'))}${button('ai-clear', locale('ลบคีย์', 'Remove key'))}</div>
       <p>${locale('คีย์เก็บในเบราว์เซอร์นี้และไม่ปลอดภัย ผู้ที่เข้าถึงเบราว์เซอร์อาจตรวจดูได้', 'Key is stored in this browser and is not secure. Anyone with browser access may inspect it.')}</p>
       <p class="exp-ai-status" data-ai-status data-state="${escape(status.type)}" role="status" aria-live="polite">${escape(status.message)}</p>
     </section>`;
+  }
+  loadTopicMedia() {
+    if (!this.aiQuestionService?.isEnabled() || !this.aiQuestionService.hasKey()) return;
+    const topic = this.topic;
+    void this.aiQuestionService.loadMedia?.([topic], { [topic]: getQuestionUnitKeys(topic) });
+  }
+  webMedia(categoryId, sources = []) {
+    if (!this.aiQuestionService?.isEnabled?.()) return '';
+    const media = this.aiQuestionService?.getMedia?.(categoryId) || { images: [], sources: [] };
+    const image = media.images[0] || (this.aiQuestionService?.isEnabled?.() ? {
+      url: 'assets/ui/favicon.svg', caption: locale('ไม่พบภาพจากเว็บ', 'Web image unavailable')
+    } : null);
+    const links = (sources.length ? sources : media.sources).slice(0, 3);
+    if (!image && !links.length) return '';
+    return `<aside class="exp-web-media">${image ? `<a href="${escape(image.sourceUrl)}" target="_blank" rel="noopener noreferrer"><img src="${escape(image.url)}" alt="${escape(image.caption)}" loading="lazy" referrerpolicy="no-referrer"><small>${escape(image.caption)}</small></a>` : ''}${links.length ? `<div><small>${locale('แหล่งข้อมูล', 'Sources')}</small>${links.map(source => `<a href="${escape(source.url)}" target="_blank" rel="noopener noreferrer">${escape(source.title)}</a>`).join('')}</div>` : ''}</aside>`;
+  }
+  refreshWebMedia() {
+    if (!this.root.classList.contains('active')) return;
+    const s = this.game?.s;
+    if (!s) {
+      const settings = this.root.querySelector('.exp-ai-settings');
+      if (!settings) return;
+      settings.nextElementSibling?.classList?.contains('exp-web-media') && settings.nextElementSibling.remove();
+      settings.insertAdjacentHTML('afterend', this.webMedia(this.topic));
+      return;
+    }
+    if (s.phase !== 'question' || s.question.source !== 'ai') return;
+    const title = this.root.querySelector('.exp-task h2');
+    if (!title) return;
+    title.nextElementSibling?.classList?.contains('exp-web-media') && title.nextElementSibling.remove();
+    title.insertAdjacentHTML('afterend', this.webMedia(s.topic, s.question.sources || []));
+    this.root.querySelectorAll('.exp-web-media img').forEach(image => image.addEventListener('error', () => image.parentElement.remove(), { once: true }));
   }
   useAIQuestion() {
     const s = this.game?.s;
@@ -347,7 +417,17 @@ export class ExpeditionUI {
     const selection = this.aiQuestionService.takeQuestion({ categories: [s.topic], unitSets });
     if (!selection) return;
     const question = makeQuestionFromSelection(s.topic, { ...selection, source: 'ai' });
-    if (question) s.question = question;
+    if (question) {
+      this.motionTripStage = 'ready';
+      s.question = question;
+    }
+  }
+  finishMotionLeg(leg) {
+    if (this.game?.s.question?.format !== MOTION_TRIP_FORMAT) return;
+    if (leg === 'outbound' && this.motionTripStage === 'outbound') this.motionTripStage = 'destination';
+    else if (leg === 'return' && this.motionTripStage === 'returning') this.motionTripStage = 'complete';
+    else return;
+    this.render();
   }
   hud() {
     const s = this.game.s;
@@ -435,10 +515,54 @@ export class ExpeditionUI {
       <text class="exp-diagram-value" x="562" y="98">? ${targetUnit}</text>
     </svg></figure>`;
   }
+  motionTripSimulation(trip) {
+    const distance = Number(trip.distanceKm).toLocaleString('en-US', { maximumFractionDigits: 4 });
+    const outbound = Number(trip.outboundMinutes).toLocaleString('en-US', { maximumFractionDigits: 4 });
+    const returning = Number(trip.returnMinutes).toLocaleString('en-US', { maximumFractionDigits: 4 });
+    const trackState = {
+      outbound: 'is-outbound',
+      destination: 'is-destination',
+      returning: 'is-returning',
+      complete: 'is-complete'
+    }[this.motionTripStage] || 'is-home';
+    const markerLeg = this.motionTripStage === 'outbound' ? 'outbound' : this.motionTripStage === 'returning' ? 'return' : '';
+    const control = this.motionTripStage === 'ready'
+      ? button('motion-outbound', locale('ออกเดินทาง →', 'Depart →'), '', false, true)
+      : this.motionTripStage === 'outbound'
+        ? button('motion-arrive:outbound', locale('ถึงจุดหมาย', 'Arrive at destination'))
+        : this.motionTripStage === 'destination'
+          ? button('motion-return', locale('← ถอยกลับฐาน', '← Return to base'), '', false, true)
+          : this.motionTripStage === 'returning'
+            ? button('motion-arrive:return', locale('กลับถึงฐาน', 'Arrive back at base'))
+            : button('motion-reset', locale('เริ่มทริปอีกครั้ง', 'Run the trip again'));
+    const status = {
+      ready: locale('เริ่มจากฐาน ไปยังจุดหมาย แล้วกลับมา', 'Start at base, travel to the destination, then return'),
+      outbound: locale('กำลังเดินทางไป…', 'Traveling outbound…'),
+      destination: locale('ถึงจุดหมายแล้ว · พร้อมเดินทางกลับ', 'At the destination · ready to return'),
+      returning: locale('กำลังเดินทางกลับ…', 'Returning to base…'),
+      complete: locale('กลับถึงฐานแล้ว · คำนวณความเร็วเฉลี่ย', 'Back at base · calculate the average speed')
+    }[this.motionTripStage] || '';
+    const label = locale(
+      `เส้นทางไปกลับ ${distance} กิโลเมตร เวลาไป ${outbound} นาที เวลากลับ ${returning} นาที`,
+      `Round trip of ${distance} kilometers, ${outbound} minutes outbound and ${returning} minutes returning`
+    );
+    return `<figure class="exp-motion-trip">
+      <div class="exp-motion-track ${trackState}" role="img" aria-label="${escape(label)}">
+        <span class="exp-motion-stop exp-motion-home">${locale('ฐาน', 'BASE')}</span>
+        <span class="exp-motion-stop exp-motion-destination">${locale('จุดหมาย', 'DESTINATION')} · ${distance} km</span>
+        <span class="exp-motion-marker" data-motion-marker="${markerLeg}" aria-hidden="true">●</span>
+      </div>
+      <figcaption class="exp-motion-times"><span>${locale('ไป', 'OUTBOUND')}: ${outbound} ${locale('นาที', 'min')}</span><span>${locale('กลับ', 'RETURN')}: ${returning} ${locale('นาที', 'min')}</span></figcaption>
+      <p class="exp-motion-status" aria-live="polite">${status}</p>${control}
+    </figure>`;
+  }
   task() {
     const s = this.game.s;
     if (s.phase === 'skill') return `<span class="exp-kicker">${locale('YOUR TURN / เลือกสกิล', 'YOUR TURN / Choose a skill')}</span><h2>${locale('จะรับมืออย่างไร?', 'How will you handle it?')}</h2><p class="exp-note">${locale('สกิลพิเศษ 4 ช่อง · โจมตีพื้นฐานพร้อมใช้เสมอ · พลังโจมตีเพิ่ม', '4 skill slots · basic strike always available · attack power bonus')} ${s.bonus}</p><div class="exp-skills">${['basic', ...s.skills].map(id => button(`skill:${id}`, `${localeSkill(id)}${s.levels[id] ? ` +${s.levels[id]}` : ''}`, (s.cooldowns[id] || 0) > 0 ? `${locale('พร้อมใช้อีก', 'Ready again in')} ${s.cooldowns[id]} ${locale('ตา', 'turns')}` : localeSkillDescription(id), (s.cooldowns[id] || 0) > 0, id === 'basic')).join('')}</div>`;
-    if (s.phase === 'question') return `<span class="exp-kicker">${s.turn === 'enemy' ? locale('DEFEND / ตอบเพื่อป้องกัน', 'DEFEND / Answer to guard') : s.turn === 'event' ? locale('LEARNING / โจทย์เสริม', 'LEARNING / Extra drill') : `ATTACK / ${localeSkill(s.selected)}`} · ${s.question.format?.toUpperCase() || 'CONVERT'}${s.question.source === 'ai' ? ' · AI' : ''}${!s.ranked && this.aiQuestionService?.isEnabled() && this.aiQuestionService.hasKey() && s.question.source !== 'ai' ? ' · LOCAL' : ''}</span>${s.question.diagram ? this.questionDiagram(s.question.diagram) : ''}<h2>${escape(s.question.text)}</h2><p class="exp-note">${s.turn === 'event' ? locale('เลือกคำตอบเพื่อรับรางวัลและดูวิธีคิด', 'Choose an answer to earn a reward and review the reasoning') : s.turn === 'enemy' ? locale('Perfect รับ 75% · Good รับ 100% · Bad รับ 115%', 'Perfect gives 75% · Good gives 100% · Bad gives 115%') : locale('Perfect ทำผล 120% · Good 100% · Bad 75%', 'Perfect hits 120% · Good 100% · Bad 75%')} · ${locale('ไม่มีเวลาบังคับตอบ', 'No hard timer on the answer')}</p><div class="exp-answers">${s.question.options.map((n, i) => button(`answer:${i}`, `<span class="exp-key">${i + 1}</span> ${escape(n)}`)).join('')}</div>`;
+    if (s.phase === 'question') {
+      const answersDisabled = Boolean(s.question.motionTrip && this.motionTripStage !== 'complete');
+      return `<span class="exp-kicker">${s.turn === 'enemy' ? locale('DEFEND / ตอบเพื่อป้องกัน', 'DEFEND / Answer to guard') : s.turn === 'event' ? locale('LEARNING / โจทย์เสริม', 'LEARNING / Extra drill') : `ATTACK / ${localeSkill(s.selected)}`} · ${s.question.format?.toUpperCase() || 'CONVERT'}${s.question.source === 'ai' ? ' · AI' : ''}${!s.ranked && this.aiQuestionService?.isEnabled() && this.aiQuestionService.hasKey() && s.question.source !== 'ai' ? ' · LOCAL' : ''}</span>${s.question.diagram ? this.questionDiagram(s.question.diagram) : ''}${s.question.motionTrip ? this.motionTripSimulation(s.question.motionTrip) : ''}<h2>${escape(s.question.text)}</h2><p class="exp-note">${s.turn === 'event' ? locale('เลือกคำตอบเพื่อรับรางวัลและดูวิธีคิด', 'Choose an answer to earn a reward and review the reasoning') : s.turn === 'enemy' ? locale('Perfect รับ 75% · Good รับ 100% · Bad รับ 115%', 'Perfect gives 75% · Good gives 100% · Bad gives 115%') : locale('Perfect ทำผล 120% · Good 100% · Bad 75%', 'Perfect hits 120% · Good 100% · Bad 75%')} · ${locale('ไม่มีเวลาบังคับตอบ', 'No hard timer on the answer')}</p><div class="exp-answers">${s.question.options.map((n, i) => button(`answer:${i}`, `<span class="exp-key">${i + 1}</span> ${escape(n)}`, '', answersDisabled)).join('')}</div>`;
+    }
     if (s.phase === 'qte') {
       const defense = s.turn === 'enemy';
       return `<div class="exp-timing ${defense ? 'is-defense' : ''}"><span class="exp-kicker">${defense ? locale('COUNTERMEASURE / DEFEND', 'COUNTERMEASURE / DEFEND') : `SKILL EXECUTION / ${localeSkill(s.selected)}`}</span><h2>${locale('ถูกต้อง! จับจังหวะ', 'Correct! Catch the rhythm')}</h2><div class="exp-timing-title">${defense ? 'PERFECT GUARD' : 'PRECISION STRIKE'}</div><p class="exp-note">${locale('กดให้ตรงแถบสีทอง', 'Press the cursor onto the golden band')}</p>

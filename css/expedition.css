@@ -148,6 +148,25 @@
 .exp-diagram-label { fill: var(--text-secondary); font: 700 16px var(--font-mono); letter-spacing: .08em; }
 .exp-diagram-value { fill: var(--text-primary); font: 700 22px var(--font-mono); }
 .exp-diagram-operator { fill: var(--exp-accent); font: 700 30px var(--font-display); }
+.exp-motion-trip { margin-block: var(--space-md) var(--space-lg); padding: var(--space-md); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-raised); }
+.exp-motion-track { position: relative; height: 104px; overflow: hidden; border: 1px solid var(--border-active); border-radius: var(--radius-sm); background: linear-gradient(90deg, var(--surface-panel), var(--accent-primary-dim)); }
+.exp-motion-track::before { content: ''; position: absolute; top: 39px; left: 10%; right: 10%; border-top: 2px dashed var(--border-active); }
+.exp-motion-stop { position: absolute; bottom: 8px; color: var(--text-secondary); font: 700 .7rem var(--font-mono); }
+.exp-motion-home { left: 8%; }
+.exp-motion-destination { right: 8%; text-align: right; }
+.exp-motion-marker { position: absolute; top: 26px; left: 10%; transform: translateX(-50%); color: var(--exp-accent); font-size: 1.6rem; line-height: 1; text-shadow: 0 0 12px var(--accent-glow); }
+.exp-motion-track.is-outbound .exp-motion-marker { animation: exp-motion-outbound 1.5s ease-in-out forwards; }
+.exp-motion-track.is-destination .exp-motion-marker { left: 90%; }
+.exp-motion-track.is-returning .exp-motion-marker { animation: exp-motion-return 1.5s ease-in-out forwards; }
+.exp-motion-track.is-complete .exp-motion-marker { left: 10%; }
+@keyframes exp-motion-outbound { from { left: 10%; } to { left: 90%; } }
+@keyframes exp-motion-return { from { left: 90%; } to { left: 10%; } }
+.exp-motion-times { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--space-sm); margin-block: var(--space-sm); color: var(--text-secondary); font: 700 .75rem var(--font-mono); }
+.exp-motion-status { min-height: 1.4em; margin-block: var(--space-sm); color: var(--exp-accent); font-size: .85rem; }
+@media (prefers-reduced-motion: reduce) {
+  .exp-motion-track.is-outbound .exp-motion-marker,
+  .exp-motion-track.is-returning .exp-motion-marker { animation-duration: .01ms; }
+}
 .exp-skills, .exp-choices { display: grid; gap: var(--space-sm); margin-block: var(--space-lg); }
 .exp-skills { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .exp-skills > :first-child { grid-column: 1 / -1; }

@@ -138,11 +138,11 @@
           <div class="hub-panel__backdrop" data-close-panel></div>
           <div class="hub-panel__card"><button class="panel-close" type="button" data-close-panel aria-label="Close training">×</button>
             <div class="panel-kicker">SIMULATION / NO DAMAGE</div><h2 id="training-title">TRAINING</h2><p class="panel-lede">Tune the drill before entering the arena.</p>
-            <div class="config-block"><span class="config-label">QUANTITY</span><div class="choice-row" id="training-categories"></div></div>
+            <div class="config-block"><span class="config-label">QUANTITY</span><div class="choice-row" id="training-categories"></div><div class="training-category-sources" id="training-category-sources"></div></div>
             <div class="config-block"><span class="config-label">INTENSITY</span><div class="choice-row"><button class="choice-chip is-selected" data-training-difficulty="guided">GUIDED</button><button class="choice-chip" data-training-difficulty="standard">STANDARD</button><button class="choice-chip" data-training-difficulty="challenge">CHALLENGE</button></div></div>
             <section class="ai-question-settings" aria-labelledby="ai-question-title">
               <label class="ai-question-toggle"><input id="ai-questions-enabled" type="checkbox"><span id="ai-question-title">GENERATE QUESTIONS WITH AI</span></label>
-              <p class="ai-question-note">Uses OpenAI to create new conversion-question batches. The game calculates and checks each answer.</p>
+              <p class="ai-question-note">Searches the web for unit images and context. OpenAI creates questions; the game calculates and checks every answer.</p>
               <label class="sr-only" for="ai-api-key">OpenAI API key</label>
               <input id="ai-api-key" class="ai-api-key" type="password" autocomplete="off" placeholder="OpenAI API key">
               <div class="ai-question-actions">
@@ -264,6 +264,8 @@
         <div class="question-kicker">SI BASE CONVERSION / SELECT RESPONSE</div>
         <div class="question-text" id="question-text" aria-live="polite">Loading...</div>
         <div class="question-category" id="question-category">--</div>
+        <p class="ai-question-runtime-status" id="ai-question-runtime-status" role="alert" aria-live="assertive" hidden></p>
+        <div class="question-web-media" id="question-web-media"></div>
         <div class="scan-result" id="scan-result" aria-live="polite" hidden><span class="scan-result__label">SCAN RESULT</span><strong id="scan-result-text">--</strong></div>
         <button class="hint-button" id="btn-hint" type="button" hidden>REVEAL HINT</button>
         <div class="hint-panel" id="hint-panel" hidden></div>

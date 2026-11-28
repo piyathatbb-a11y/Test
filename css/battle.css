@@ -721,6 +721,8 @@
   margin-bottom: var(--space-md);
   text-transform: uppercase;
 }
+.question-web-media { max-width: 620px; margin: 0 auto; }
+.ai-question-runtime-status { max-width: 620px; margin: 8px auto; color: #ff9b9b; font-family: var(--font-mono); font-size: 0.68rem; line-height: 1.5; }
 .answers-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

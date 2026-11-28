@@ -111,7 +111,7 @@ export class QuestionGenerator {
       explanation,
       hint: `Compare the SI prefixes: ${fromUnit.abbr} → ${toUnit.abbr}.`,
       format,
-      ...(selection.source === 'ai' ? { source: 'ai' } : {})
+      ...(selection.source === 'ai' ? { source: 'ai', sources: Array.isArray(selection.sources) ? selection.sources : [] } : {})
     };
   }
 

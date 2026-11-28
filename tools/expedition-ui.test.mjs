@@ -68,13 +68,30 @@ test('setup exposes derived topics and their matching category selection', () =>
   for (const topic of ['area', 'volume', 'speed']) {
     assert.match(ui.root.innerHTML, new RegExp(`data-exp="topic:${topic}"`));
   }
-  assert.match(ui.root.innerHTML, /แผนภาพและการคำนวณหลายขั้น/);
+  assert.match(ui.root.innerHTML, /แผนภาพ.*การคำนวณหลายขั้น/);
   ui.act('topic:speed');
   ui.act('start');
   assert.equal(ui.game.s.topic, 'speed');
   ui.act('node:0-1');
   ui.act('skill:basic');
   assert.match(ui.game.s.question.text, /(km\/h|m\/s|cm\/s|km\/s)/);
+});
+
+test('web images and source links render in expedition setup', () => {
+  const ai = {
+    isEnabled: () => true,
+    hasKey: () => true,
+    getMedia: () => ({
+      images: [{ url: 'https://images.example.test/meter.jpg', sourceUrl: 'https://learn.example.test/length', caption: 'Meter ruler' }],
+      sources: [{ url: 'https://learn.example.test/length', title: 'Length reference' }]
+    }),
+    getStatus: () => ({ type: 'ready', message: 'Ready.' })
+  };
+  const ui = mount(ai);
+  ui.open();
+  assert.match(ui.root.innerHTML, /https:\/\/images\.example\.test\/meter\.jpg/);
+  assert.match(ui.root.innerHTML, /https:\/\/learn\.example\.test\/length/);
+  assert.match(ui.root.innerHTML, /rel="noopener noreferrer"/);
 });
 
 test('ranked QTE suspension applies BAD once and preserves question accuracy', () => {
@@ -162,6 +179,49 @@ test('AI diagram questions render a visual calculation in casual runs only', () 
   ranked.act('skill:basic');
   assert.notEqual(ranked.game.s.question.format, 'diagram-math');
   assert.doesNotMatch(ranked.root.innerHTML, /exp-question-diagram/);
+});
+
+test('AI speed trip requires outbound and return interactions before answering', () => {
+  const selection = {
+    categoryId: 'speed',
+    format: 'motion-trip',
+    distanceKm: 6,
+    outboundMinutes: 10,
+    returnMinutes: 20
+  };
+  const ai = {
+    isEnabled: () => true,
+    hasKey: () => true,
+    getStatus: () => ({ type: 'ready', message: 'AI questions ready.' }),
+    resetQueue() {},
+    prefetch() {},
+    takeQuestion: () => selection
+  };
+  const ui = mount(ai);
+  ui.open();
+  ui.act('topic:speed');
+  ui.start();
+  ui.act('node:0-1');
+  ui.act('skill:basic');
+  assert.equal(ui.game.s.question.format, 'motion-trip');
+  assert.match(ui.root.innerHTML, /data-exp="motion-outbound"/);
+  assert.match(ui.root.innerHTML, /6 km/);
+  assert.match(ui.root.innerHTML, /10 นาที/);
+  assert.match(ui.root.innerHTML, /20 นาที/);
+  assert.match(ui.root.innerHTML, /data-exp="answer:[0-3]" disabled/);
+  ui.act(`answer:${ui.game.s.question.correct}`);
+  assert.equal(ui.game.s.phase, 'question');
+
+  ui.act('motion-outbound');
+  assert.match(ui.root.innerHTML, /exp-motion-track is-outbound/);
+  ui.finishMotionLeg('outbound');
+  assert.match(ui.root.innerHTML, /data-exp="motion-return"/);
+  ui.act('motion-return');
+  assert.match(ui.root.innerHTML, /exp-motion-track is-returning/);
+  ui.finishMotionLeg('return');
+  assert.match(ui.root.innerHTML, /exp-motion-track is-complete/);
+  assert.match(ui.root.innerHTML, /data-exp="answer:[0-3]"/);
+  assert.doesNotMatch(ui.root.innerHTML, /data-exp="answer:[0-3]" disabled/);
 });
 
 test('reward, replacement, rest, shop, event and summary states render usable actions', () => {

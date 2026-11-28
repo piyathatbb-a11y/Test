@@ -86,6 +86,8 @@ const ELEMENTS = {
 
   questionText: document.getElementById('question-text'),
   questionCategory: document.getElementById('question-category'),
+  aiRuntimeStatus: document.getElementById('ai-question-runtime-status'),
+  questionWebMedia: document.getElementById('question-web-media'),
   questionPanel: document.querySelector('.question-panel'),
   scanResult: document.getElementById('scan-result'),
   scanResultText: document.getElementById('scan-result-text'),
@@ -125,6 +127,7 @@ const ELEMENTS = {
   dailyStatus: document.getElementById('daily-status'),
   codexGrid: document.getElementById('codex-grid'),
   trainingCategories: document.getElementById('training-categories'),
+  trainingCategorySources: document.getElementById('training-category-sources'),
   aiQuestionsEnabled: document.getElementById('ai-questions-enabled'),
   aiApiKey: document.getElementById('ai-api-key'),
   aiQuestionStatus: document.getElementById('ai-question-status'),
@@ -171,6 +174,11 @@ const expeditionUI = new ExpeditionUI(() => {
   goToScreen(SCREEN_IDS.START);
   refreshStartScreen();
 }, aiQuestionService);
+aiQuestionService.subscribeMedia(() => {
+  renderTrainingCategories();
+  updateQuestionWebMedia();
+  expeditionUI.refreshWebMedia();
+});
 
 const state = {
   timerId: null,
@@ -250,9 +258,50 @@ function openFirstVisitTutorial() {
 }
 
 function updateAIQuestionStatus({ type, message }) {
-  if (!ELEMENTS.aiQuestionStatus) return;
-  ELEMENTS.aiQuestionStatus.textContent = message;
-  ELEMENTS.aiQuestionStatus.dataset.state = type;
+  if (ELEMENTS.aiQuestionStatus) {
+    ELEMENTS.aiQuestionStatus.textContent = message;
+    ELEMENTS.aiQuestionStatus.dataset.state = type;
+  }
+  if (ELEMENTS.aiRuntimeStatus) {
+    const visible = type === 'error' && ELEMENTS.questionPanel?.classList.contains('training-mode');
+    ELEMENTS.aiRuntimeStatus.hidden = !visible;
+    ELEMENTS.aiRuntimeStatus.textContent = visible ? message : '';
+  }
+}
+
+function safeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
+}
+
+function webMediaMarkup(media, label) {
+  if (!aiQuestionService.isEnabled()) return '';
+  if (!media || (!media.images.length && !media.sources.length && !aiQuestionService.isEnabled())) return '';
+  const image = media.images[0];
+  const imageMarkup = image
+    ? `<a class="web-media__image" href="${safeHtml(image.sourceUrl)}" target="_blank" rel="noopener noreferrer"><img src="${safeHtml(image.url)}" alt="${safeHtml(image.caption || label)}" loading="lazy" referrerpolicy="no-referrer"><span>${safeHtml(image.caption || label)}</span></a>`
+    : `<div class="web-media__image"><img src="assets/ui/favicon.svg" alt="${safeHtml(label)} illustration" loading="lazy"><span>${safeHtml(label)} · ${safeHtml(localizeMediaFallback())}</span></div>`;
+  const sources = media.sources.slice(0, 3).map(source => `<a href="${safeHtml(source.url)}" target="_blank" rel="noopener noreferrer">${safeHtml(source.title)}</a>`).join('');
+  return `<div class="web-media">${imageMarkup}<div class="web-media__sources"><small>${safeHtml(label)} · WEB SOURCES</small>${sources}</div></div>`;
+}
+
+function localizeMediaFallback() {
+  try { return localStorage.getItem('unitHunterLanguage') === 'en' ? 'web image unavailable' : 'ไม่พบภาพจากเว็บ'; }
+  catch { return 'web image unavailable'; }
+}
+
+function updateQuestionWebMedia() {
+  if (!ELEMENTS.questionWebMedia) return;
+  const question = state.currentQuestion;
+  if (!question || question.source !== 'ai') { ELEMENTS.questionWebMedia.innerHTML = ''; return; }
+  const media = aiQuestionService.getMedia(question.categoryId);
+  ELEMENTS.questionWebMedia.innerHTML = webMediaMarkup({ ...media, sources: question.sources?.length ? question.sources : media.sources }, question.category || question.categoryId);
+  ELEMENTS.questionWebMedia.querySelectorAll('img').forEach(image => image.addEventListener('error', () => image.closest('.web-media__image')?.remove(), { once: true }));
+}
+
+function loadTrainingMedia() {
+  if (!aiQuestionService.isEnabled() || !aiQuestionService.hasKey()) return;
+  const ids = state.trainingCategory === 'all' ? Object.keys(CONVERSION_CATEGORIES) : [state.trainingCategory];
+  void aiQuestionService.loadMedia(ids).then(renderTrainingCategories);
 }
 
 function setupUI() {
@@ -264,13 +313,11 @@ function setupUI() {
   }
   ELEMENTS.aiQuestionsEnabled?.addEventListener('change', () => {
     aiQuestionService.setEnabled(ELEMENTS.aiQuestionsEnabled.checked);
+    loadTrainingMedia();
   });
   ELEMENTS.btnSaveAiKey?.addEventListener('click', () => {
     if (aiQuestionService.saveKey(ELEMENTS.aiApiKey?.value || '')) {
       ELEMENTS.aiApiKey.value = '';
-      if (aiQuestionService.isEnabled()) {
-        updateAIQuestionStatus({ type: 'idle', message: 'Key saved. Start a casual or practice run to generate questions.' });
-      }
     }
   });
   ELEMENTS.btnClearAiKey?.addEventListener('click', () => {
@@ -348,6 +395,7 @@ function setupUI() {
     if (!button) return;
     state.trainingCategory = button.dataset.trainingCategory;
     renderTrainingCategories();
+    loadTrainingMedia();
   });
   document.querySelectorAll('[data-training-difficulty]').forEach(button => {
     button.addEventListener('click', () => {
@@ -459,6 +507,7 @@ function openHubPanel(panelName) {
   state.activePanel = panelName;
   panel.querySelector('.panel-close')?.focus();
   if (panelName === 'daily') refreshDailyPanel();
+  if (panelName === 'training') loadTrainingMedia();
   if (panelName === 'help') openTutorial();
 }
 
@@ -552,9 +601,16 @@ function renderCodex() {
 function renderTrainingCategories() {
   if (!ELEMENTS.trainingCategories) return;
   const categories = [{ id: 'all', name: 'ALL SI' }, ...Object.values(CONVERSION_CATEGORIES).map(category => ({ id: category.id, name: category.id.toUpperCase() }))];
-  ELEMENTS.trainingCategories.innerHTML = categories.map(category => `
-    <button class="choice-chip${state.trainingCategory === category.id ? ' is-selected' : ''}" data-training-category="${category.id}">${category.name}</button>
-  `).join('');
+  ELEMENTS.trainingCategories.innerHTML = categories.map(category => {
+    const image = !aiQuestionService.isEnabled() || category.id === 'all' ? null : aiQuestionService.getMedia(category.id).images[0]
+      || (aiQuestionService.isEnabled() ? { url: 'assets/ui/favicon.svg', caption: category.name } : null);
+    return `<button class="choice-chip${state.trainingCategory === category.id ? ' is-selected' : ''}" data-training-category="${category.id}"><span>${category.name}</span>${image ? `<img class="training-unit-image" src="${safeHtml(image.url)}" alt="${safeHtml(image.caption)}" loading="lazy" referrerpolicy="no-referrer">` : ''}</button>`;
+  }).join('');
+  ELEMENTS.trainingCategories.querySelectorAll('img').forEach(image => image.addEventListener('error', () => image.remove(), { once: true }));
+  if (ELEMENTS.trainingCategorySources) {
+    const sources = !aiQuestionService.isEnabled() || state.trainingCategory === 'all' ? [] : aiQuestionService.getMedia(state.trainingCategory).sources;
+    ELEMENTS.trainingCategorySources.innerHTML = sources.slice(0, 3).map(source => `<a href="${safeHtml(source.url)}" target="_blank" rel="noopener noreferrer">${safeHtml(source.title)}</a>`).join('');
+  }
 }
 
 function getDailyDateKey() {
@@ -736,6 +792,8 @@ function setHudMode(mode) {
   ELEMENTS.hudMode.textContent = labels[mode] || 'RUN';
   ELEMENTS.battleHud?.setAttribute('data-mode', mode);
   ELEMENTS.questionPanel?.classList.toggle('training-mode', mode === 'training');
+  if (mode === 'training' && state.modeOptions.useAIQuestions) updateAIQuestionStatus(aiQuestionService.getStatus());
+  else if (ELEMENTS.aiRuntimeStatus) ELEMENTS.aiRuntimeStatus.hidden = true;
 }
 
 function spawnEnemy() {
@@ -857,6 +915,7 @@ function getQuestionDuration(baseTimer, difficulty = null) {
 function renderQuestion(question) {
   ELEMENTS.questionText.textContent = `${question.question} ${question.unit}`;
   ELEMENTS.questionCategory.textContent = `${question.category} · ${question.format?.toUpperCase() || 'CONVERT'}${question.source === 'ai' ? ' · AI' : state.modeOptions.useAIQuestions ? ' · LOCAL' : ''}`;
+  updateQuestionWebMedia();
   if (ELEMENTS.scanResult) ELEMENTS.scanResult.hidden = true;
   if (ELEMENTS.scanResultText) ELEMENTS.scanResultText.textContent = '';
   if (ELEMENTS.hintPanel) {
@@ -1475,7 +1534,7 @@ const TRANSLATIONS = {
   'SURVIVAL OPERATIONS':'โหมดเอาตัวรอด',
   'GUIDED CONVERSIONS':'ฝึกแปลงหน่วยแบบมีตัวช่วย',
   'GENERATE QUESTIONS WITH AI':'สร้างคำถามด้วย AI',
-  'Uses OpenAI to create new conversion-question batches. The game calculates and checks each answer.':'ใช้ OpenAI สร้างชุดคำถามแปลงหน่วยใหม่ โดยเกมจะคำนวณและตรวจคำตอบให้เอง',
+  'Searches the web for unit images and context. OpenAI creates questions; the game calculates and checks every answer.':'ค้นเว็บหารูปและข้อมูลประกอบหน่วย ให้ OpenAI สร้างโจทย์ แล้วเกมคำนวณและตรวจคำตอบเอง',
   'OpenAI API key':'OpenAI API key',
   'SAVE KEY':'บันทึกคีย์',
   'REMOVE KEY':'ลบคีย์',

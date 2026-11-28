@@ -139,6 +139,39 @@ test('AI diagram calculations convert both measurements before applying the oper
   }), null);
 });
 
+test('AI speed trips calculate average speed across a round trip', () => {
+  const question = makeQuestionFromSelection('speed', {
+    format: 'motion-trip',
+    distanceKm: 6,
+    outboundMinutes: 10,
+    returnMinutes: 20,
+    source: 'ai'
+  });
+
+  assert.equal(question.options[question.correct], 24);
+  assert.equal(question.format, 'motion-trip');
+  assert.deepEqual(question.motionTrip, {
+    distanceKm: 6,
+    outboundMinutes: 10,
+    returnMinutes: 20
+  });
+  assert.match(question.explanation, /12 km.*30 นาที.*24 km\/h/);
+  assert.equal(makeQuestionFromSelection('speed', {
+    format: 'motion-trip',
+    distanceKm: 6,
+    outboundMinutes: 10,
+    returnMinutes: 20
+  }), null);
+  assert.equal(makeQuestionFromSelection('length', {
+    format: 'motion-trip',
+    distanceKm: 6,
+    outboundMinutes: 10,
+    returnMinutes: 20,
+    source: 'ai'
+  }), null);
+  assert.notEqual(makeQuestion('speed', 'motion-is-ai-only').format, 'motion-trip');
+});
+
 test('seeded question formats vary and remain deterministic for ranked runs', () => {
   const questions = Array.from({ length: 100 }, (_, i) => makeQuestion('speed', `daily:${i}`));
   const formats = new Set(questions.map(question => question.format));

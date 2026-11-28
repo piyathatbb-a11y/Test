@@ -36,7 +36,7 @@ const UNITS = {
   speed: [['cm/s', 0.01], ['m/s', 1], ['km/h', 1 / 3.6], ['km/s', 1000]]
 };
 const QUESTION_FORMATS = ['convert', 'reverse', 'choose-unit', 'compare', 'word-problem'];
-const AI_QUESTION_FORMATS = [...QUESTION_FORMATS, 'diagram-math'];
+const AI_QUESTION_FORMATS = [...QUESTION_FORMATS, 'diagram-math', 'motion-trip'];
 const WORD_PROBLEM_CONTEXTS = {
   length: ['A hiking trail is', 'A road section measures', 'A cable has a length of'],
   mass: ['A package has a mass of', 'A science sample has a mass of', 'A shipment weighs'],
@@ -132,6 +132,33 @@ export function makeQuestion(topic, key, reviewPair = null) {
   return makeQuestionFromSelection(topic, selection, rng);
 }
 export function makeQuestionFromSelection(topic, selection, rng = seeded(`${QUESTION_RULESET}:${topic}:${JSON.stringify(selection)}:options`)) {
+  if (selection?.format === 'motion-trip') {
+    if (topic !== 'speed' || selection.source !== 'ai') return null;
+    const { distanceKm, outboundMinutes, returnMinutes } = selection;
+    if (
+      !Number.isFinite(distanceKm) || distanceKm <= 0 || distanceKm > 100
+      || !Number.isFinite(outboundMinutes) || outboundMinutes <= 0 || outboundMinutes > 360
+      || !Number.isFinite(returnMinutes) || returnMinutes <= 0 || returnMinutes > 360
+    ) return null;
+    const totalDistance = distanceKm * 2;
+    const totalMinutes = outboundMinutes + returnMinutes;
+    const answer = totalDistance * 60 / totalMinutes;
+    if (!Number.isFinite(answer) || answer <= 0) return null;
+    const numeric = numericOptions(answer, rng);
+    if (!numeric) return null;
+    return {
+      text: `ทริปไป–กลับมีระยะทางขาเดียว ${normalize(distanceKm)} km ใช้เวลาไป ${normalize(outboundMinutes)} นาทีและกลับ ${normalize(returnMinutes)} นาที — ความเร็วเฉลี่ยเท่าไร?`,
+      options: numeric.options,
+      correct: numeric.correct,
+      pair: ['km', 'km/h'],
+      explanation: `ระยะทางรวม = ${normalize(totalDistance)} km; เวลารวม = ${normalize(totalMinutes)} นาที = ${normalize(totalMinutes / 60)} ชั่วโมง; ความเร็วเฉลี่ย = ${numeric.value} km/h`,
+      format: 'motion-trip',
+      motionTrip: { distanceKm, outboundMinutes, returnMinutes },
+      source: 'ai',
+      sources: Array.isArray(selection.sources) ? selection.sources : []
+    };
+  }
+
   const units = UNITS[topic];
   if (!units || !selection || !Number.isFinite(selection.value) || selection.value <= 0) return null;
   const from = units.find(([unit]) => unit === selection.from);
@@ -232,7 +259,7 @@ export function makeQuestionFromSelection(topic, selection, rng = seeded(`${QUES
     explanation,
     format,
     ...(diagram ? { diagram } : {}),
-    ...(selection.source === 'ai' ? { source: 'ai' } : {})
+    ...(selection.source === 'ai' ? { source: 'ai', sources: Array.isArray(selection.sources) ? selection.sources : [] } : {})
   };
 }
 export function qteGrade(progress, timedOut = false) {
