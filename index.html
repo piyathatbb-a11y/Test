@@ -140,18 +140,7 @@
             <div class="panel-kicker">SIMULATION / NO DAMAGE</div><h2 id="training-title">TRAINING</h2><p class="panel-lede">Tune the drill before entering the arena.</p>
             <div class="config-block"><span class="config-label">QUANTITY</span><div class="choice-row" id="training-categories"></div><div class="training-category-sources" id="training-category-sources"></div></div>
             <div class="config-block"><span class="config-label">INTENSITY</span><div class="choice-row"><button class="choice-chip is-selected" data-training-difficulty="guided">GUIDED</button><button class="choice-chip" data-training-difficulty="standard">STANDARD</button><button class="choice-chip" data-training-difficulty="challenge">CHALLENGE</button></div></div>
-            <section class="ai-question-settings" aria-labelledby="ai-question-title">
-              <label class="ai-question-toggle"><input id="ai-questions-enabled" type="checkbox"><span id="ai-question-title">GENERATE QUESTIONS WITH AI</span></label>
-              <p class="ai-question-note">Searches the web for unit images and context. OpenAI creates questions; the game calculates and checks every answer.</p>
-              <label class="sr-only" for="ai-api-key">OpenAI API key</label>
-              <input id="ai-api-key" class="ai-api-key" type="password" autocomplete="off" placeholder="OpenAI API key">
-              <div class="ai-question-actions">
-                <button id="btn-save-ai-key" class="btn-secondary" type="button">SAVE KEY</button>
-                <button id="btn-clear-ai-key" class="btn-secondary" type="button">REMOVE KEY</button>
-              </div>
-              <p class="ai-key-warning">Key is stored in this browser only, not securely. Anyone with access to this browser can inspect it.</p>
-              <p id="ai-question-status" class="ai-question-status" role="status" aria-live="polite"></p>
-            </section>
+            <div class="config-block"><span class="config-label">QUESTION TYPE</span><div class="choice-row"><button class="choice-chip is-selected" data-training-style="knowledge" aria-pressed="true">UNIT KNOWLEDGE · 100</button><button class="choice-chip" data-training-style="mixed" aria-pressed="false">MIXED DRILL</button></div><p class="training-source-note">100 original factual questions based on official SI references: <a href="https://www.bipm.org/en/measurement-units/si-base-units" target="_blank" rel="noopener noreferrer">BIPM SI units</a> · <a href="https://www.bipm.org/en/history-si" target="_blank" rel="noopener noreferrer">SI history</a> · <a href="https://www.nist.gov/si-redefinition/candela" target="_blank" rel="noopener noreferrer">NIST candela</a></p></div>
             <button id="btn-training-start" class="btn-primary panel-action">START DRILL</button>
           </div>
         </div>
@@ -264,8 +253,8 @@
         <div class="question-kicker">SI BASE CONVERSION / SELECT RESPONSE</div>
         <div class="question-text" id="question-text" aria-live="polite">Loading...</div>
         <div class="question-category" id="question-category">--</div>
-        <p class="ai-question-runtime-status" id="ai-question-runtime-status" role="alert" aria-live="assertive" hidden></p>
-        <div class="question-web-media" id="question-web-media"></div>
+          <div class="question-source" id="question-source"></div>
+        <button class="training-exit" id="btn-exit-training" type="button" hidden>EXIT DRILL / MENU</button>
         <div class="scan-result" id="scan-result" aria-live="polite" hidden><span class="scan-result__label">SCAN RESULT</span><strong id="scan-result-text">--</strong></div>
         <button class="hint-button" id="btn-hint" type="button" hidden>REVEAL HINT</button>
         <div class="hint-panel" id="hint-panel" hidden></div>

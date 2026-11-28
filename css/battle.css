@@ -721,8 +721,6 @@
   margin-bottom: var(--space-md);
   text-transform: uppercase;
 }
-.question-web-media { max-width: 620px; margin: 0 auto; }
-.ai-question-runtime-status { max-width: 620px; margin: 8px auto; color: #ff9b9b; font-family: var(--font-mono); font-size: 0.68rem; line-height: 1.5; }
 .answers-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -951,6 +949,10 @@
   font-size: 0.65rem;
   color: var(--accent-secondary);
 }
+.training-exit[hidden] { display: none; }
+.training-exit { display: block; min-height: 42px; margin: var(--space-sm) 0; padding: 0 var(--space-md); border: 1px solid var(--accent-secondary); border-radius: var(--radius-sm); background: transparent; color: var(--accent-secondary); font-family: var(--font-display); font-size: 0.58rem; letter-spacing: 0.1em; cursor: pointer; }
+.training-exit:hover, .training-exit:focus-visible { background: color-mix(in srgb, var(--accent-secondary) 15%, transparent); color: var(--text-primary); }
+.training-exit:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; }
 
 .answers-grid {
   gap: var(--space-md);

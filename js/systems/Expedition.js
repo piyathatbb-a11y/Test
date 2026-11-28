@@ -35,7 +35,7 @@ const UNITS = {
   volume: [['µL', 0.000001], ['mL', 0.001], ['L', 1], ['m³', 1000]],
   speed: [['cm/s', 0.01], ['m/s', 1], ['km/h', 1 / 3.6], ['km/s', 1000]]
 };
-const QUESTION_FORMATS = ['convert', 'reverse', 'choose-unit', 'compare', 'word-problem'];
+const QUESTION_FORMATS = ['convert', 'reverse', 'compare', 'word-problem'];
 const AI_QUESTION_FORMATS = [...QUESTION_FORMATS, 'diagram-math', 'motion-trip'];
 const WORD_PROBLEM_CONTEXTS = {
   length: ['A hiking trail is', 'A road section measures', 'A cable has a length of'],

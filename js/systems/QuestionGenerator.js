@@ -9,19 +9,35 @@ import {
   getUnitScaleMagnitude,
   getUnlockedCategories
 } from '../data/conversions.js';
+import { UNIT_KNOWLEDGE_QUESTIONS } from '../data/unitKnowledge.js';
 
-const QUESTION_FORMATS = ['convert', 'reverse', 'choose-unit', 'compare', 'word-problem'];
-const WORD_PROBLEM_CONTEXTS = {
-  length: ['A trail is', 'A cable measures', 'A road section is'],
-  mass: ['A package has a mass of', 'A sample weighs', 'A shipment has a mass of'],
-  time: ['A process lasts', 'A signal continues for', 'A machine runs for'],
-  current: ['A device draws a current of', 'A circuit carries', 'A sensor measures a current of'],
-  temperature: ['A lab records a temperature of', 'A chamber is at', 'A sensor reads'],
-  amount: ['A solution contains', 'A sample has an amount of', 'A reaction uses'],
-  luminous: ['A lamp has an intensity of', 'A beacon emits', 'A light source measures']
-};
+const QUESTION_FORMATS = ['convert', 'reverse', 'compare'];
 
 export class QuestionGenerator {
+  createKnowledgeDeck(categories = [], rng = Math.random) {
+    const allowed = categories.length ? new Set(categories) : null;
+    const deck = UNIT_KNOWLEDGE_QUESTIONS
+      .map((_, index) => index)
+      .filter(index => !allowed || allowed.has(UNIT_KNOWLEDGE_QUESTIONS[index].topic));
+    this.shuffleArray(deck, rng);
+    return deck;
+  }
+
+  generateKnowledgeQuestion(index, rng = Math.random, language = 'th') {
+    const entry = UNIT_KNOWLEDGE_QUESTIONS[index];
+    if (!entry) return null;
+    const options = [entry.answer, ...entry.distractors];
+    this.shuffleArray(options, rng);
+    const lang = language === 'en' ? 'en' : 'th';
+    return {
+      bankId: entry.id, category: 'SI KNOWLEDGE', categoryId: entry.topic,
+      question: entry.prompt[lang], unit: '', options: options.map(option => option[lang]),
+      correctIndex: options.indexOf(entry.answer), correctValue: entry.answer[lang],
+      explanation: entry.explanation[lang], hint: entry.explanation[lang], format: 'knowledge',
+      sourceLabel: entry.source[lang], sourceUrl: entry.source[2]
+    };
+  }
+
   generateFromSelection(selection, rng = Math.random) {
     if (!selection || typeof selection !== 'object') return null;
     const category = CONVERSION_CATEGORIES[selection?.categoryId];
@@ -86,9 +102,6 @@ export class QuestionGenerator {
       roundedCorrect = roundForDisplay(difference);
       questionText = `A: ${selection.value} ${fromUnit.abbr} · B: ${comparisonValue} ${comparisonUnit.abbr} — what is the difference in ${toUnit.abbr}?`;
       explanation = `A = ${this.formatNumber(convertLinear(selection.value, fromUnit.factor, toUnit.factor))} ${toUnit.abbr}; B = ${this.formatNumber(convertLinear(comparisonValue, comparisonUnit.factor, toUnit.factor))} ${toUnit.abbr}; difference = ${this.formatNumber(roundedCorrect)} ${toUnit.abbr}.`;
-    } else if (format === 'word-problem') {
-      const contexts = WORD_PROBLEM_CONTEXTS[category.id];
-      questionText = `${contexts[Math.floor(rng() * contexts.length)]} ${selection.value} ${fromUnit.abbr}. What is this in ${toUnit.abbr}?`;
     }
 
     if (!options) {
@@ -116,6 +129,9 @@ export class QuestionGenerator {
   }
 
   generate(level, restrictedCats = [], rng = Math.random, options = {}) {
+    if (Number.isInteger(options.knowledgeIndex)) {
+      return this.generateKnowledgeQuestion(options.knowledgeIndex, rng, options.language);
+    }
     const requestedCategories = Array.isArray(options.categories) && options.categories.length > 0
       ? options.categories
       : getUnlockedCategories(level);

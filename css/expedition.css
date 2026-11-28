@@ -62,14 +62,6 @@
 .exp-button--primary:not(:disabled):hover small { color: var(--text-primary); }
 .exp-manual { margin-block: var(--space-xl); border-left: 3px solid var(--accent-primary); padding: var(--space-md) var(--space-lg); background: var(--surface-panel); }
 .exp-manual p:last-child { margin-bottom: 0; }
-.exp-ai-settings { margin-top: var(--space-xl); padding: var(--space-md); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); background: var(--surface-panel); }
-.exp-ai-settings > label:not(.sr-only) { display: flex; align-items: center; gap: var(--space-sm); }
-.exp-ai-settings input[type="checkbox"] { accent-color: var(--accent-primary); }
-.exp-ai-settings input[type="password"] { width: min(100%, 440px); }
-.exp-ai-settings p { color: var(--text-secondary); font-size: .78rem; }
-.exp-ai-settings .exp-actions { margin-block: var(--space-sm); }
-.exp-ai-status[data-state="error"] { color: var(--exp-danger); }
-.exp-ai-status[data-state="ready"] { color: var(--exp-accent); }
 .exp-hud { display: grid; grid-template-columns: 2fr 1fr 1fr 1.5fr auto; gap: var(--space-lg); padding: var(--space-md) var(--space-lg); background: var(--surface-panel); margin-top: var(--space-md); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); align-items: center; }
 .exp-hud > div { display: flex; flex-direction: column; gap: var(--space-xs); }
 .exp-hud span { font-size: .75rem; color: var(--text-secondary); }

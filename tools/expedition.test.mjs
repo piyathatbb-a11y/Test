@@ -46,8 +46,7 @@ test('questions have unique displayed answers and correct arithmetic across topi
       assert.equal(q.options.length, 4);
       assert.equal(new Set(q.options.map(String)).size, 4);
       assert.ok(q.correct >= 0 && q.correct <= 3);
-      if (q.format === 'choose-unit') assert.ok(q.options.every(value => typeof value === 'string'));
-      else assert.ok(q.options.every(Number.isFinite));
+      assert.ok(q.options.every(Number.isFinite));
       assert.ok(q.explanation.includes(String(q.options[q.correct])));
       assert.notEqual(q.pair[0], q.pair[1]);
       assert.deepEqual(q, makeQuestion(topic, String(i)));
@@ -62,7 +61,6 @@ test('derived-unit conversions and all question formats calculate answers locall
     ['speed', { format: 'convert', from: 'km/h', to: 'm/s', value: 36 }, 10],
     ['length', { format: 'reverse', from: 'km', to: 'm', value: 2 }, 2],
     ['length', { format: 'compare', from: 'km', to: 'm', value: 2, comparisonFrom: 'm', comparisonValue: 500 }, 1500],
-    ['area', { format: 'choose-unit', from: 'km²', to: 'm²', value: 1 }, 'ha'],
     ['volume', { format: 'word-problem', from: 'L', to: 'mL', value: 2, context: 'A tank contains' }, 2000]
   ];
 

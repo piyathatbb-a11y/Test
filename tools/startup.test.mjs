@@ -43,7 +43,7 @@ test('actual main entry point initializes and hub buttons open the new expeditio
     addEventListener() {}, createTreeWalker: () => ({ nextNode: () => false }),
     body: new Element('body'), documentElement: new Element('html')
   };
-  globalThis.window = { addEventListener() {}, setInterval() { return 1; }, setTimeout() { return 1; } };
+  globalThis.window = { addEventListener() {}, setInterval() { return 1; }, setTimeout() { return 1; }, clearTimeout() {} };
   globalThis.NodeFilter = { SHOW_TEXT: 4 };
   globalThis.MutationObserver = class { observe() {} };
   await import('../js/main.js');

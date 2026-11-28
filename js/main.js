@@ -2,7 +2,6 @@ import { EventBus, EVENTS } from './core/EventBus.js';
 import { SaveSystem } from './core/SaveSystem.js';
 import { LeaderboardService } from './systems/LeaderboardService.js';
 import { QuestionGenerator } from './systems/QuestionGenerator.js';
-import { AIQuestionService } from './systems/AIQuestionService.js';
 import { RunManager } from './systems/RunManager.js';
 import { SpriteRenderer } from './systems/SpriteRenderer.js';
 import { AudioSystem } from './systems/AudioSystem.js';
@@ -86,8 +85,6 @@ const ELEMENTS = {
 
   questionText: document.getElementById('question-text'),
   questionCategory: document.getElementById('question-category'),
-  aiRuntimeStatus: document.getElementById('ai-question-runtime-status'),
-  questionWebMedia: document.getElementById('question-web-media'),
   questionPanel: document.querySelector('.question-panel'),
   scanResult: document.getElementById('scan-result'),
   scanResultText: document.getElementById('scan-result-text'),
@@ -128,11 +125,6 @@ const ELEMENTS = {
   codexGrid: document.getElementById('codex-grid'),
   trainingCategories: document.getElementById('training-categories'),
   trainingCategorySources: document.getElementById('training-category-sources'),
-  aiQuestionsEnabled: document.getElementById('ai-questions-enabled'),
-  aiApiKey: document.getElementById('ai-api-key'),
-  aiQuestionStatus: document.getElementById('ai-question-status'),
-  btnSaveAiKey: document.getElementById('btn-save-ai-key'),
-  btnClearAiKey: document.getElementById('btn-clear-ai-key'),
   routeLevel: document.getElementById('route-level'),
   routeSubtitle: document.getElementById('route-subtitle'),
   routeTrack: document.getElementById('route-track'),
@@ -160,7 +152,6 @@ const eventBus = new EventBus();
 const saveSystem = new SaveSystem();
 const leaderboardService = new LeaderboardService(saveSystem);
 const questionGenerator = new QuestionGenerator();
-const aiQuestionService = new AIQuestionService({ onStatus: updateAIQuestionStatus });
 const runManager = new RunManager(eventBus);
 const spriteRenderer = new SpriteRenderer(eventBus);
 const audioSystem = new AudioSystem();
@@ -173,11 +164,6 @@ const player = new Player();
 const expeditionUI = new ExpeditionUI(() => {
   goToScreen(SCREEN_IDS.START);
   refreshStartScreen();
-}, aiQuestionService);
-aiQuestionService.subscribeMedia(() => {
-  renderTrainingCategories();
-  updateQuestionWebMedia();
-  expeditionUI.refreshWebMedia();
 });
 
 const state = {
@@ -193,6 +179,7 @@ const state = {
   questionIndex: 0,
   trainingCategory: 'all',
   trainingDifficulty: 'guided',
+  trainingQuestionStyle: 'knowledge',
   activePanel: null,
   initialSpawn: true,
   route: null,
@@ -230,6 +217,7 @@ const TUTORIAL_STEPS = [
 ];
 
 function init() {
+  try { localStorage.removeItem('unitHunterOpenAIKey'); localStorage.removeItem('unitHunterAIQuestionsEnabled'); } catch {}
   validateBossRestrictions();
   audioSystem.init();
   setupUI();
@@ -257,75 +245,11 @@ function openFirstVisitTutorial() {
   ELEMENTS.btnTutorialSkip?.focus();
 }
 
-function updateAIQuestionStatus({ type, message }) {
-  if (ELEMENTS.aiQuestionStatus) {
-    ELEMENTS.aiQuestionStatus.textContent = message;
-    ELEMENTS.aiQuestionStatus.dataset.state = type;
-  }
-  if (ELEMENTS.aiRuntimeStatus) {
-    const visible = type === 'error' && ELEMENTS.questionPanel?.classList.contains('training-mode');
-    ELEMENTS.aiRuntimeStatus.hidden = !visible;
-    ELEMENTS.aiRuntimeStatus.textContent = visible ? message : '';
-  }
-}
-
 function safeHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 }
 
-function webMediaMarkup(media, label) {
-  if (!aiQuestionService.isEnabled()) return '';
-  if (!media || (!media.images.length && !media.sources.length && !aiQuestionService.isEnabled())) return '';
-  const image = media.images[0];
-  const imageMarkup = image
-    ? `<a class="web-media__image" href="${safeHtml(image.sourceUrl)}" target="_blank" rel="noopener noreferrer"><img src="${safeHtml(image.url)}" alt="${safeHtml(image.caption || label)}" loading="lazy" referrerpolicy="no-referrer"><span>${safeHtml(image.caption || label)}</span></a>`
-    : `<div class="web-media__image"><img src="assets/ui/favicon.svg" alt="${safeHtml(label)} illustration" loading="lazy"><span>${safeHtml(label)} · ${safeHtml(localizeMediaFallback())}</span></div>`;
-  const sources = media.sources.slice(0, 3).map(source => `<a href="${safeHtml(source.url)}" target="_blank" rel="noopener noreferrer">${safeHtml(source.title)}</a>`).join('');
-  return `<div class="web-media">${imageMarkup}<div class="web-media__sources"><small>${safeHtml(label)} · WEB SOURCES</small>${sources}</div></div>`;
-}
-
-function localizeMediaFallback() {
-  try { return localStorage.getItem('unitHunterLanguage') === 'en' ? 'web image unavailable' : 'ไม่พบภาพจากเว็บ'; }
-  catch { return 'web image unavailable'; }
-}
-
-function updateQuestionWebMedia() {
-  if (!ELEMENTS.questionWebMedia) return;
-  const question = state.currentQuestion;
-  if (!question || question.source !== 'ai') { ELEMENTS.questionWebMedia.innerHTML = ''; return; }
-  const media = aiQuestionService.getMedia(question.categoryId);
-  ELEMENTS.questionWebMedia.innerHTML = webMediaMarkup({ ...media, sources: question.sources?.length ? question.sources : media.sources }, question.category || question.categoryId);
-  ELEMENTS.questionWebMedia.querySelectorAll('img').forEach(image => image.addEventListener('error', () => image.closest('.web-media__image')?.remove(), { once: true }));
-}
-
-function loadTrainingMedia() {
-  if (!aiQuestionService.isEnabled() || !aiQuestionService.hasKey()) return;
-  const ids = state.trainingCategory === 'all' ? Object.keys(CONVERSION_CATEGORIES) : [state.trainingCategory];
-  void aiQuestionService.loadMedia(ids).then(renderTrainingCategories);
-}
-
 function setupUI() {
-  if (ELEMENTS.aiQuestionsEnabled) {
-    ELEMENTS.aiQuestionsEnabled.checked = aiQuestionService.isEnabled();
-    if (!aiQuestionService.isEnabled()) updateAIQuestionStatus({ type: 'idle', message: 'AI question generation is off.' });
-    else if (!aiQuestionService.hasKey()) updateAIQuestionStatus({ type: 'error', message: 'Enter and save an OpenAI API key to use AI questions.' });
-    else updateAIQuestionStatus({ type: 'idle', message: 'AI questions are enabled for casual and practice runs.' });
-  }
-  ELEMENTS.aiQuestionsEnabled?.addEventListener('change', () => {
-    aiQuestionService.setEnabled(ELEMENTS.aiQuestionsEnabled.checked);
-    loadTrainingMedia();
-  });
-  ELEMENTS.btnSaveAiKey?.addEventListener('click', () => {
-    if (aiQuestionService.saveKey(ELEMENTS.aiApiKey?.value || '')) {
-      ELEMENTS.aiApiKey.value = '';
-    }
-  });
-  ELEMENTS.btnClearAiKey?.addEventListener('click', () => {
-    if (aiQuestionService.clearKey() && ELEMENTS.aiQuestionsEnabled?.checked) {
-      updateAIQuestionStatus({ type: 'error', message: 'Enter and save an OpenAI API key to use AI questions.' });
-    }
-  });
-
   eventBus.on(EVENTS.BOSS_PHASE_CHANGE, ({ phaseName }) => {
     showFloatingText(`PHASE CHANGE // ${phaseName}`, '#ffd166');
     triggerBattleFx('attack', 'PHASE SHIFT');
@@ -359,6 +283,7 @@ function setupUI() {
   });
   ELEMENTS.btnRetry.addEventListener('click', retryMission);
   ELEMENTS.btnBackMenu.addEventListener('click', returnToMainMenu);
+  document.getElementById('btn-exit-training')?.addEventListener('click', exitTraining);
   ELEMENTS.btnSubmitScore.addEventListener('click', submitScore);
   ELEMENTS.btnTrainingStart?.addEventListener('click', startTraining);
   ELEMENTS.btnDailyPractice?.addEventListener('click', () => { closeHubPanels(); expeditionUI.open('practice'); });
@@ -395,7 +320,16 @@ function setupUI() {
     if (!button) return;
     state.trainingCategory = button.dataset.trainingCategory;
     renderTrainingCategories();
-    loadTrainingMedia();
+  });
+  document.querySelectorAll('[data-training-style]').forEach(button => {
+    button.addEventListener('click', () => {
+      state.trainingQuestionStyle = button.dataset.trainingStyle;
+      document.querySelectorAll('[data-training-style]').forEach(chip => {
+        const selected = chip === button;
+        chip.classList.toggle('is-selected', selected);
+        chip.setAttribute('aria-pressed', String(selected));
+      });
+    });
   });
   document.querySelectorAll('[data-training-difficulty]').forEach(button => {
     button.addEventListener('click', () => {
@@ -499,6 +433,15 @@ function returnToMainMenu() {
   goToScreen(SCREEN_IDS.START);
 }
 
+function exitTraining() {
+  if (state.mode !== 'training') return;
+  stopTimer();
+  clearStrikeSequence();
+  state.mode = 'run';
+  state.modeOptions = {};
+  returnToMainMenu();
+}
+
 function openHubPanel(panelName) {
   closeHubPanels();
   const panel = document.getElementById(`hub-panel-${panelName}`);
@@ -507,7 +450,6 @@ function openHubPanel(panelName) {
   state.activePanel = panelName;
   panel.querySelector('.panel-close')?.focus();
   if (panelName === 'daily') refreshDailyPanel();
-  if (panelName === 'training') loadTrainingMedia();
   if (panelName === 'help') openTutorial();
 }
 
@@ -602,15 +544,9 @@ function renderTrainingCategories() {
   if (!ELEMENTS.trainingCategories) return;
   const categories = [{ id: 'all', name: 'ALL SI' }, ...Object.values(CONVERSION_CATEGORIES).map(category => ({ id: category.id, name: category.id.toUpperCase() }))];
   ELEMENTS.trainingCategories.innerHTML = categories.map(category => {
-    const image = !aiQuestionService.isEnabled() || category.id === 'all' ? null : aiQuestionService.getMedia(category.id).images[0]
-      || (aiQuestionService.isEnabled() ? { url: 'assets/ui/favicon.svg', caption: category.name } : null);
-    return `<button class="choice-chip${state.trainingCategory === category.id ? ' is-selected' : ''}" data-training-category="${category.id}"><span>${category.name}</span>${image ? `<img class="training-unit-image" src="${safeHtml(image.url)}" alt="${safeHtml(image.caption)}" loading="lazy" referrerpolicy="no-referrer">` : ''}</button>`;
+    return `<button class="choice-chip${state.trainingCategory === category.id ? ' is-selected' : ''}" data-training-category="${category.id}"><span>${category.name}</span></button>`;
   }).join('');
-  ELEMENTS.trainingCategories.querySelectorAll('img').forEach(image => image.addEventListener('error', () => image.remove(), { once: true }));
-  if (ELEMENTS.trainingCategorySources) {
-    const sources = !aiQuestionService.isEnabled() || state.trainingCategory === 'all' ? [] : aiQuestionService.getMedia(state.trainingCategory).sources;
-    ELEMENTS.trainingCategorySources.innerHTML = sources.slice(0, 3).map(source => `<a href="${safeHtml(source.url)}" target="_blank" rel="noopener noreferrer">${safeHtml(source.title)}</a>`).join('');
-  }
+  if (ELEMENTS.trainingCategorySources) ELEMENTS.trainingCategorySources.innerHTML = '';
 }
 
 function getDailyDateKey() {
@@ -666,7 +602,6 @@ function startRun(mode = 'run', options = {}) {
   state.enemyStunned = false;
   state.mode = mode;
   state.modeOptions = { ...options };
-  if (mode !== 'training') aiQuestionService.resetQueue();
   state.questionIndex = 0;
   state.initialSpawn = true;
   state.route = null;
@@ -762,13 +697,10 @@ function retryMission() {
 function startTraining() {
   const categoryIds = state.trainingCategory === 'all' ? [] : [state.trainingCategory];
   const difficulty = state.trainingDifficulty;
-  const useAIQuestions = aiQuestionService.isEnabled() && aiQuestionService.hasKey();
-  aiQuestionService.resetQueue();
-  if (useAIQuestions) void aiQuestionService.prefetch({ categories: categoryIds });
-  else if (aiQuestionService.isEnabled()) {
-    updateAIQuestionStatus({ type: 'error', message: 'Enter and save an OpenAI API key to use AI questions. Using standard questions.' });
-  }
-  launchMission('training', { categories: categoryIds, difficulty, useAIQuestions }, 'packet_mimic');
+  const knowledgeDeck = state.trainingQuestionStyle === 'knowledge'
+    ? questionGenerator.createKnowledgeDeck(categoryIds)
+    : null;
+  launchMission('training', { categories: categoryIds, difficulty, knowledgeDeck }, 'packet_mimic');
 }
 
 function startDailyRun(ranked) {
@@ -792,8 +724,8 @@ function setHudMode(mode) {
   ELEMENTS.hudMode.textContent = labels[mode] || 'RUN';
   ELEMENTS.battleHud?.setAttribute('data-mode', mode);
   ELEMENTS.questionPanel?.classList.toggle('training-mode', mode === 'training');
-  if (mode === 'training' && state.modeOptions.useAIQuestions) updateAIQuestionStatus(aiQuestionService.getStatus());
-  else if (ELEMENTS.aiRuntimeStatus) ELEMENTS.aiRuntimeStatus.hidden = true;
+  const exitButton = document.getElementById('btn-exit-training');
+  if (exitButton) exitButton.hidden = mode !== 'training';
 }
 
 function spawnEnemy() {
@@ -882,22 +814,17 @@ function queueNextQuestion() {
   const options = state.mode === 'training'
     ? {
         categories: state.modeOptions.categories,
-        difficulty: state.modeOptions.difficulty
+        difficulty: state.modeOptions.difficulty,
+        knowledgeIndex: state.modeOptions.knowledgeDeck?.length
+          ? state.modeOptions.knowledgeDeck[state.questionIndex % state.modeOptions.knowledgeDeck.length]
+          : undefined,
+        language: localStorage.getItem('unitHunterLanguage') === 'en' ? 'en' : 'th'
       }
     : {};
   const rng = state.mode === 'daily'
     ? seededRandom(`${state.modeOptions.dateKey}:question:${state.questionIndex}`)
     : Math.random;
-  let aiQuestion = null;
-  if (state.mode === 'training' && state.modeOptions.useAIQuestions) {
-    for (let attempt = 0; attempt < 5 && !aiQuestion; attempt++) {
-      const selection = aiQuestionService.takeQuestion(options);
-      if (!selection) break;
-      aiQuestion = questionGenerator.generateFromSelection(selection, rng);
-    }
-  }
-  state.currentQuestion = aiQuestion
-    || questionGenerator.generate(runManager.getLevel(), restricted, rng, options);
+  state.currentQuestion = questionGenerator.generate(runManager.getLevel(), restricted, rng, options);
   state.questionIndex += 1;
   renderQuestion(state.currentQuestion);
   startTimer(getQuestionDuration(enemy.timer, state.mode === 'training' ? state.modeOptions.difficulty : null));
@@ -913,9 +840,20 @@ function getQuestionDuration(baseTimer, difficulty = null) {
 }
 
 function renderQuestion(question) {
-  ELEMENTS.questionText.textContent = `${question.question} ${question.unit}`;
-  ELEMENTS.questionCategory.textContent = `${question.category} · ${question.format?.toUpperCase() || 'CONVERT'}${question.source === 'ai' ? ' · AI' : state.modeOptions.useAIQuestions ? ' · LOCAL' : ''}`;
-  updateQuestionWebMedia();
+  ELEMENTS.questionText.textContent = `${question.question} ${question.unit || ''}`.trim();
+  ELEMENTS.questionCategory.textContent = `${question.category} · ${question.format?.toUpperCase() || 'CONVERT'}`;
+  const sourceEl = document.getElementById('question-source');
+  if (sourceEl) {
+    sourceEl.replaceChildren();
+    if (question.sourceUrl) {
+      const link = document.createElement('a');
+      link.href = question.sourceUrl;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.textContent = question.sourceLabel;
+      sourceEl.append(link);
+    }
+  }
   if (ELEMENTS.scanResult) ELEMENTS.scanResult.hidden = true;
   if (ELEMENTS.scanResultText) ELEMENTS.scanResultText.textContent = '';
   if (ELEMENTS.hintPanel) {
@@ -1534,8 +1472,6 @@ const TRANSLATIONS = {
   'SURVIVAL OPERATIONS':'โหมดเอาตัวรอด',
   'GUIDED CONVERSIONS':'ฝึกแปลงหน่วยแบบมีตัวช่วย',
   'GENERATE QUESTIONS WITH AI':'สร้างคำถามด้วย AI',
-  'Searches the web for unit images and context. OpenAI creates questions; the game calculates and checks every answer.':'ค้นเว็บหารูปและข้อมูลประกอบหน่วย ให้ OpenAI สร้างโจทย์ แล้วเกมคำนวณและตรวจคำตอบเอง',
-  'OpenAI API key':'OpenAI API key',
   'SAVE KEY':'บันทึกคีย์',
   'REMOVE KEY':'ลบคีย์',
   'Key is stored in this browser only, not securely. Anyone with access to this browser can inspect it.':'คีย์เก็บไว้ในเบราว์เซอร์นี้เท่านั้นและไม่ปลอดภัย ผู้ที่เข้าถึงเบราว์เซอร์นี้อาจตรวจดูคีย์ได้',
@@ -1610,6 +1546,14 @@ const TRANSLATIONS = {
   'Tune the drill before entering the arena.':'ตั้งค่าการฝึกก่อนเข้าสู่สนามจำลอง',
   'QUANTITY':'ประเภทหน่วย',
   'INTENSITY':'ระดับความท้าทาย',
+  'QUESTION TYPE':'รูปแบบโจทย์',
+  'MIXED DRILL':'โจทย์คละแบบ',
+  'UNIT KNOWLEDGE · 100':'ความรู้เรื่องหน่วย · 100 ข้อ',
+  '100 original factual questions based on official SI references:':'คำถามความรู้เรื่องหน่วย 100 ข้อ เรียบเรียงจากเอกสาร SI ทางการ:',
+  'BIPM SI units':'หน่วย SI ของ BIPM',
+  'SI history':'ประวัติ SI',
+  'NIST candela':'แคนเดลาของ NIST',
+  'EXIT DRILL / MENU':'ออกจากการฝึก / เมนูหลัก',
   'GUIDED':'มีคำแนะนำ',
   'STANDARD':'มาตรฐาน',
   'CHALLENGE':'ท้าทาย',
